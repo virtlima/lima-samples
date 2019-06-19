@@ -1,0 +1,52 @@
+---
+schemaVersion: "0.3"
+description: "Block Public Access to S3 Bucket"
+assumeRole: "{{AutomationAssumeRole}}"
+parameters:
+  BucketName: 
+    default: ""
+    description: "Name of Target S3 Bucket"
+    type: "String"
+  AutomationAssumeRole:
+    default: ""
+    description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+    type: "String" 
+mainSteps:
+- name: "GetBucketTag"
+  action: aws:executeAwsApi
+  inputs:
+    Service: s3
+    Api: GetBucketTagging
+    Bucket: "{{BucketName}}"
+  outputs:
+  - Name: PublicBucketTag
+    Selector: "$.TagSet[0].Value"
+    Type: "String"
+- name: BlockorNotBlock
+  action: aws:branch
+  inputs:
+    Choices:
+    - Not:
+        Variable: "{{GetBucketTag.PublicBucketTag}}"
+        StringEquals: "yes"
+      NextStep: BlockPublicAccess
+    - Variable: "{{GetBucketTag.PublicBucketTag}}"
+      StringEquals: "yes"
+      NextStep: sleepend
+- name: "BlockPublicAccess"
+  action: aws:executeAwsApi
+  inputs:
+    Service: s3
+    Api: PutPublicAccessBlock
+    Bucket: "{{BucketName}}"
+    PublicAccessBlockConfiguration:
+      BlockPublicAcls: true 
+      IgnorePublicAcls: true
+      BlockPublicPolicy: true
+      RestrictPublicBuckets: true
+  isEnd: true
+- name: "sleepend"
+  action: "aws:sleep"
+  isEnd: true
+  inputs:
+    Duration: PT1S
