@@ -1,0 +1,87 @@
+---
+schemaVersion: "0.3"
+description: "Make an AWS AMI Yours"
+assumeRole: "{{AutomationAssumeRole}}"
+parameters:
+  AMI: 
+    default: "{{ssm:/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-Base}}"
+    description: "Description Of Param"
+    type: "String" 
+mainSteps:
+- name: createStack
+  action: aws:createStack
+  inputs:
+    StackName: "TakeAMI"
+    Capabilities: [ "CAPABILITY_IAM" ]
+    TemplateBody: |
+      Description: "Deploy AMI to Take a Copy"
+      Parameters:
+        LatestAmiId:
+          Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+          Default: "{{AMI}}" 
+      Resources:
+        SecurityGroup:
+          Type: AWS::EC2::SecurityGroup
+          Properties:
+            GroupDescription: TakeAMISG
+        TakeAMIRole: 
+          Type : AWS::IAM::Role
+          Properties:
+            AssumeRolePolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+              - Effect: "Allow"
+                Principal:
+                  Service:
+                  - "ec2.amazonaws.com"
+                  - "ssm.amazonaws.com"
+                Action: "sts:AssumeRole"
+            ManagedPolicyArns:
+            - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+        IamInstanceProfile:
+          Type: "AWS::IAM::InstanceProfile"
+          Properties:
+            Roles:
+            - !Ref TakeAMIRole
+        EC2Instance:
+          Type: "AWS::EC2::Instance"
+          Properties:
+            ImageId: !Ref LatestAmiId
+            InstanceType: "t2.micro"
+            IamInstanceProfile: !Ref IamInstanceProfile
+            Tags:
+            - Key: "Name"
+              Value: "TakeAMI"
+- name: "getInstanceId"
+  action: aws:executeAwsApi
+  inputs:
+    Service: ec2
+    Api: DescribeInstances
+    Filters:  
+    - Name: "tag:Name"
+      Values: [ "TakeAMI" ]
+    - Name: "instance-state-name"
+      Values: [ "running" ]
+  outputs:
+  - Name: InstanceId
+    Selector: "$.Reservations..Instances..InstanceId"
+    Type: "StringList"
+- name: "StopInstance"
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: "AWS-StopEC2Instance"
+    RuntimeParameters:
+      InstanceId: "{{getInstanceId.InstanceId}}"
+      AutomationAssumeRole: ''
+- name: createAmi
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: AWS-CreateImage
+    RuntimeParameters:
+      InstanceId: "{{getInstanceId.InstanceId}}"
+      AutomationAssumeRole: ''
+- name: deleteStack
+  action: aws:deleteStack
+  onFailure: Continue
+  inputs:
+    StackName: "TakeAMI"

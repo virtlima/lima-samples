@@ -1,0 +1,74 @@
+---
+schemaVersion: "0.3"
+description: "Deploy AD with SSM Automation"
+# Role that is utilized to perform the steps within the Automation Document.
+assumeRole: "{{AutomationAssumeRole}}"
+# Gathering parameters needed to configure DCs in the Quick Start
+parameters:
+  SomeParam:
+    default: "DefaultParam"
+    description: "Description Of Param"
+    type: "String" 
+mainSteps:
+# This step grabs the Instance IDs for both nodes that will be configured as DCs in the Quick Start and Instance IDs for the for next steps.
+- name: "dcsInstanceIds"
+  action: aws:executeAwsApi
+  onFailure: "step:signalfailure"
+  nextStep: "dcsInstallDscModules"
+  inputs:
+    Service: ec2
+    Api: DescribeInstances
+    Filters:  
+    - Name: "tag:Name"
+      Values: [ "{{ADServer1NetBIOSName}}","{{ADServer2NetBIOSName}}" ]
+    - Name: "instance-state-name"
+      Values: [ "running" ]
+  outputs:
+  - Name: InstanceIds
+    Selector: "$.Reservations..Instances..InstanceId"
+    Type: "StringList"
+# Installs needed Powershell DSC Modules and components on both nodes and shows how to Run a Script for an S3 Bucket.
+- name: "dcsInstallDscModules"
+  action: "aws:runCommand"
+  onFailure: "step:signalfailure"
+  nextStep: "dcsLCMConfig"
+  inputs:
+    DocumentName: "AWS-RunRemoteScript"
+    InstanceIds:
+    - "{{dcsInstanceIds.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: "/aws/Quick_Start/ActiveDirectoryDS"
+    Parameters:
+      sourceType: "S3"
+      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/install-ad-modules.ps1"}'
+      commandLine: "./install-ad-modules.ps1"
+# This step Demonstrates how to run a local script on an Instance. It can be defined or pointed to a local script. 
+- name: "configDC1"
+  action: aws:runCommand
+  onFailure: "step:signalfailure"
+  nextStep: "dc2InstanceId"
+  inputs:
+    DocumentName: AWS-RunPowerShellScript
+    InstanceIds: 
+      - "{{dc1InstanceId.InstanceId}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: "/aws/Quick_Start/ActiveDirectoryDS"
+    Parameters:
+      commands: 
+        - |     
+           function DscStatusCheck () {
+               $LCMState = (Get-DscLocalConfigurationManager).LCMState
+               if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
+                   'returning 3010, should continue after reboot'
+                   exit 3010
+               } else {
+                 Get-ChildItem C:\Windows\system32\CertSrv\CertEnroll *.crt | Copy-Item -Destination c:\inetpub\wwwroot\cert.crt  
+                 'Completed'
+               }
+           }
+           
+           Start-DscConfiguration 'C:\AWSQuickstart\ConfigDC1' -Wait -Verbose -Force
+           
+           DscStatusCheck
