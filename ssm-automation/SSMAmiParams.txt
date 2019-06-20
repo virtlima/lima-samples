@@ -1,0 +1,1764 @@
+{
+    "Parameters": [
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-SP2-English-64Bit-SQL_2008_SP4_Express",
+            "Type": "String",
+            "Value": "ami-01edfbbd04a2fd387",
+            "Version": 39,
+            "LastModifiedDate": 1560799656.005,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-SP2-English-64Bit-SQL_2008_SP4_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Chinese_Simplified-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-02914b1e05e4d5b8f",
+            "Version": 40,
+            "LastModifiedDate": 1560799696.328,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Chinese_Simplified-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Chinese_Traditional-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0713828bc8ec44ca7",
+            "Version": 40,
+            "LastModifiedDate": 1560799714.406,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Chinese_Traditional-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Dutch-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0d4df56266ed7c7a0",
+            "Version": 40,
+            "LastModifiedDate": 1560799737.317,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Dutch-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Hungarian-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-08ef7b636e6b59645",
+            "Version": 41,
+            "LastModifiedDate": 1560799931.6,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Hungarian-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0aebc49e219e3b7b6",
+            "Version": 42,
+            "LastModifiedDate": 1560799952.556,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-Containers",
+            "Type": "String",
+            "Value": "ami-03402246f1ba173a0",
+            "Version": 38,
+            "LastModifiedDate": 1560800572.592,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-Containers"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-German-Full-Base",
+            "Type": "String",
+            "Value": "ami-0c40deb3c951b6b44",
+            "Version": 38,
+            "LastModifiedDate": 1560800829.89,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-German-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2017_Web",
+            "Type": "String",
+            "Value": "ami-0124b35d9176c536e",
+            "Version": 5,
+            "LastModifiedDate": 1560800936.324,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2017_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20190313-x86_64-gp2-SQL_2017_Express",
+            "Type": "String",
+            "Value": "ami-046fd519c4156252a",
+            "Version": 1,
+            "LastModifiedDate": 1558147847.19,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20190313-x86_64-gp2-SQL_2017_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/RHEL-7.6_HVM_GA-20181017-x86_64-0-Hourly2-GP2-SQL_2017_Enterprise",
+            "Type": "String",
+            "Value": "ami-0cdd8cb323ece9d80",
+            "Version": 1,
+            "LastModifiedDate": 1558147927.291,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/RHEL-7.6_HVM_GA-20181017-x86_64-0-Hourly2-GP2-SQL_2017_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-Language_Packs-32Bit-Base",
+            "Type": "String",
+            "Value": "ami-04c9dc14a751fbe1f",
+            "Version": 35,
+            "LastModifiedDate": 1560799312.5,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-Language_Packs-32Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2008_R2_SP3_Web",
+            "Type": "String",
+            "Value": "ami-07d6bcc9a675e7cc1",
+            "Version": 40,
+            "LastModifiedDate": 1560799450.057,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2008_R2_SP3_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2012_SP4_Express",
+            "Type": "String",
+            "Value": "ami-0e2734d2cf13a8a0f",
+            "Version": 21,
+            "LastModifiedDate": 1560799479.438,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2012_SP4_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Portuguese_Brazil-64Bit-Core",
+            "Type": "String",
+            "Value": "ami-0a9ecf15599a92bf8",
+            "Version": 42,
+            "LastModifiedDate": 1560799626.607,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Portuguese_Brazil-64Bit-Core"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2016_SP2_Standard",
+            "Type": "String",
+            "Value": "ami-0acad830541feb192",
+            "Version": 12,
+            "LastModifiedDate": 1560799849.663,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2016_SP2_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Italian-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0305ee12dbf346fe2",
+            "Version": 39,
+            "LastModifiedDate": 1560800313.842,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Italian-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Deep-Learning",
+            "Type": "String",
+            "Value": "ami-0fe0ec46feb621d56",
+            "Version": 36,
+            "LastModifiedDate": 1560800629.331,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Deep-Learning"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2014_SP3_Enterprise",
+            "Type": "String",
+            "Value": "ami-0763b085d8c0a7a3e",
+            "Version": 5,
+            "LastModifiedDate": 1560800682.228,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2014_SP3_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Italian-Full-Base",
+            "Type": "String",
+            "Value": "ami-0a3681ceaa64c1f1c",
+            "Version": 10,
+            "LastModifiedDate": 1560801265.715,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Italian-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Korean-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-02717f64928193d79",
+            "Version": 43,
+            "LastModifiedDate": 1560799579.287,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Korean-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2016_SP2_Web",
+            "Type": "String",
+            "Value": "ami-08764ddeb367a798c",
+            "Version": 12,
+            "LastModifiedDate": 1560800012.205,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2016_SP2_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2016_SP2_Web",
+            "Type": "String",
+            "Value": "ami-028b5a308812ee90c",
+            "Version": 10,
+            "LastModifiedDate": 1560800905.26,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2016_SP2_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Korean-Full-Base",
+            "Type": "String",
+            "Value": "ami-04f6eae3849aea52d",
+            "Version": 38,
+            "LastModifiedDate": 1560800949.294,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Korean-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Korean-Full-SQL_2016_SP2_Standard",
+            "Type": "String",
+            "Value": "ami-0ffcc598b5a53e8ea",
+            "Version": 10,
+            "LastModifiedDate": 1560800962.218,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Korean-Full-SQL_2016_SP2_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Portuguese_Portugal-Full-Base",
+            "Type": "String",
+            "Value": "ami-0adce5bbb3e35ca1a",
+            "Version": 38,
+            "LastModifiedDate": 1560800990.004,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Portuguese_Portugal-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Web",
+            "Type": "String",
+            "Value": "ami-0877e53e1677dac65",
+            "Version": 10,
+            "LastModifiedDate": 1560801213.435,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-French-Full-Base",
+            "Type": "String",
+            "Value": "ami-026aaa8066e7fbbb5",
+            "Version": 10,
+            "LastModifiedDate": 1560801235.292,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-French-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Hungarian-Full-Base",
+            "Type": "String",
+            "Value": "ami-01e3b47611add3210",
+            "Version": 10,
+            "LastModifiedDate": 1560801253.432,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Hungarian-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Korean-Full-Base",
+            "Type": "String",
+            "Value": "ami-02ee143413cfa79a5",
+            "Version": 10,
+            "LastModifiedDate": 1560801289.771,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Korean-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Chinese_Hong_Kong_SAR-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-09e4efb5ae16d0b9f",
+            "Version": 43,
+            "LastModifiedDate": 1560799350.305,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Chinese_Hong_Kong_SAR-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Chinese_PRC-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0cdb09a7e552b9674",
+            "Version": 43,
+            "LastModifiedDate": 1560799364.615,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Chinese_PRC-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2008_R2_SP3_Express",
+            "Type": "String",
+            "Value": "ami-016115854073137ad",
+            "Version": 42,
+            "LastModifiedDate": 1560799427.271,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2008_R2_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Language_Packs-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-001b1126e4d540cb0",
+            "Version": 43,
+            "LastModifiedDate": 1560799587.311,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Language_Packs-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-French-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0cf4f2724877b4451",
+            "Version": 39,
+            "LastModifiedDate": 1560800279.033,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-French-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Containers",
+            "Type": "String",
+            "Value": "ami-097b262b1ef6828d2",
+            "Version": 38,
+            "LastModifiedDate": 1560800648.417,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Containers"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Russian-Full-Base",
+            "Type": "String",
+            "Value": "ami-0e5bef61f3259d23e",
+            "Version": 38,
+            "LastModifiedDate": 1560801003.0,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Russian-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Chinese_Simplified-Full-Base",
+            "Type": "String",
+            "Value": "ami-0f13aedc338a60fd0",
+            "Version": 10,
+            "LastModifiedDate": 1560801047.028,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Chinese_Simplified-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Standard",
+            "Type": "String",
+            "Value": "ami-02b3cbc69c75e7638",
+            "Version": 10,
+            "LastModifiedDate": 1560801157.886,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-bionic-18.04-amd64-server-20180522-dotnetcore",
+            "Type": "String",
+            "Value": "ami-e24b7d9d",
+            "Version": 1,
+            "LastModifiedDate": 1531532993.969,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-bionic-18.04-amd64-server-20180522-dotnetcore"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-SP2-English-32Bit-Base",
+            "Type": "String",
+            "Value": "ami-03f750db5380aa4ed",
+            "Version": 39,
+            "LastModifiedDate": 1560799635.638,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-SP2-English-32Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2012_SP4_Enterprise",
+            "Type": "String",
+            "Value": "ami-06587497f9842f5e4",
+            "Version": 24,
+            "LastModifiedDate": 1560799777.169,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2012_SP4_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-Tesla",
+            "Type": "String",
+            "Value": "ami-0720643f3ef7c9581",
+            "Version": 2,
+            "LastModifiedDate": 1560799899.584,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-Tesla"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-German-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-067155b9e2f4746ac",
+            "Version": 40,
+            "LastModifiedDate": 1560799918.745,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-German-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Chinese_Traditional-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-07be0e94438f179cb",
+            "Version": 40,
+            "LastModifiedDate": 1560800127.538,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Chinese_Traditional-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2008_R2_SP3_Express",
+            "Type": "String",
+            "Value": "ami-09aa5ac7c588e3d8b",
+            "Version": 40,
+            "LastModifiedDate": 1560800173.233,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2008_R2_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Hungarian-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0fda2e31844adcf85",
+            "Version": 39,
+            "LastModifiedDate": 1560800302.953,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Hungarian-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2014_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-0b9bb1c41f79c7bc6",
+            "Version": 12,
+            "LastModifiedDate": 1560800408.609,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2014_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Polish-Full-Base",
+            "Type": "String",
+            "Value": "ami-0249c01264be93c8a",
+            "Version": 38,
+            "LastModifiedDate": 1560800974.139,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Polish-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Web",
+            "Type": "String",
+            "Value": "ami-0a26367d3a4fc2ab2",
+            "Version": 10,
+            "LastModifiedDate": 1560801170.777,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-0f2ddcd673d4493af",
+            "Version": 12,
+            "LastModifiedDate": 1560799810.586,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2016_SP2_Express",
+            "Type": "String",
+            "Value": "ami-0ca8a8cf326f6858f",
+            "Version": 12,
+            "LastModifiedDate": 1560799841.016,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2016_SP2_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-Deep-Learning",
+            "Type": "String",
+            "Value": "ami-0f8cf4288536a66da",
+            "Version": 38,
+            "LastModifiedDate": 1560799873.351,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-Deep-Learning"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Russian-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0678e35e2056b7264",
+            "Version": 40,
+            "LastModifiedDate": 1560800068.964,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Russian-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Chinese_Traditional_Hong_Kong_SAR-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0a601f1d9aa3317cd",
+            "Version": 39,
+            "LastModifiedDate": 1560800118.722,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Chinese_Traditional_Hong_Kong_SAR-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-German-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-03bb452b22a22ea0a",
+            "Version": 39,
+            "LastModifiedDate": 1560800292.098,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-German-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2008_R2_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-04e43f5f284cec0bf",
+            "Version": 39,
+            "LastModifiedDate": 1560800349.031,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2008_R2_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2017_Standard",
+            "Type": "String",
+            "Value": "ami-0fe52acc257edaae0",
+            "Version": 5,
+            "LastModifiedDate": 1560800924.273,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2017_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-HyperV",
+            "Type": "String",
+            "Value": "ami-013aa49faf49eeac8",
+            "Version": 10,
+            "LastModifiedDate": 1560801132.82,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-HyperV"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20180622.1-x86_64-gp2-dotnetcore",
+            "Type": "String",
+            "Value": "ami-05673d809cbe59f27",
+            "Version": 3,
+            "LastModifiedDate": 1555424627.401,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20180622.1-x86_64-gp2-dotnetcore"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-SQL_2005_SP4_Express",
+            "Type": "String",
+            "Value": "ami-06ec94dfcff29908b",
+            "Version": 35,
+            "LastModifiedDate": 1560799294.452,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-SQL_2005_SP4_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2012_SP4_Express",
+            "Type": "String",
+            "Value": "ami-0ffc8107035b37760",
+            "Version": 21,
+            "LastModifiedDate": 1560799557.767,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2012_SP4_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0f1b0088f877978d2",
+            "Version": 39,
+            "LastModifiedDate": 1560800161.343,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2016_SP2_Standard",
+            "Type": "String",
+            "Value": "ami-0fa262a6698b5d6a2",
+            "Version": 10,
+            "LastModifiedDate": 1560800724.494,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2016_SP2_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-Base",
+            "Type": "String",
+            "Value": "ami-04f46af0096c1d8b9",
+            "Version": 10,
+            "LastModifiedDate": 1560801090.707,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Express",
+            "Type": "String",
+            "Value": "ami-00174d0735a68ddc4",
+            "Version": 10,
+            "LastModifiedDate": 1560801192.501,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Japanese-Full-Base",
+            "Type": "String",
+            "Value": "ami-06a3d67a78ae217ef",
+            "Version": 10,
+            "LastModifiedDate": 1560801277.558,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Japanese-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Russian-Full-Base",
+            "Type": "String",
+            "Value": "ami-0a31143ba722db443",
+            "Version": 10,
+            "LastModifiedDate": 1560801332.283,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Russian-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_Express",
+            "Type": "String",
+            "Value": "ami-3ed30d41",
+            "Version": 2,
+            "LastModifiedDate": 1524165124.678,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20190212-SQL_2017_Web",
+            "Type": "String",
+            "Value": "ami-09dfac33e054f303e",
+            "Version": 1,
+            "LastModifiedDate": 1558147980.827,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20190212-SQL_2017_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-French-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-02037fea9e58337c5",
+            "Version": 39,
+            "LastModifiedDate": 1560799910.498,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-French-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Italian-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-02c55b5beded930c8",
+            "Version": 41,
+            "LastModifiedDate": 1560799940.618,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Italian-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Polish-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0f4dd21d02333bd48",
+            "Version": 40,
+            "LastModifiedDate": 1560800035.067,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Polish-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2008_R2_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-06f0fdb5fc22371d0",
+            "Version": 39,
+            "LastModifiedDate": 1560800181.431,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2008_R2_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2014_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-0eb9e7748b271368a",
+            "Version": 12,
+            "LastModifiedDate": 1560800255.095,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2014_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-HyperV",
+            "Type": "String",
+            "Value": "ami-0c4395bd1ced4719c",
+            "Version": 24,
+            "LastModifiedDate": 1560800661.465,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-HyperV"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2016_SP2_Enterprise",
+            "Type": "String",
+            "Value": "ami-0bcd2283eac4fbcac",
+            "Version": 10,
+            "LastModifiedDate": 1560800701.068,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2016_SP2_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Chinese_Traditional-Full-Base",
+            "Type": "String",
+            "Value": "ami-0a1c062c942b8cb1a",
+            "Version": 10,
+            "LastModifiedDate": 1560801057.904,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Chinese_Traditional-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-ContainersLatest",
+            "Type": "String",
+            "Value": "ami-09ed21a8269ebc1f7",
+            "Version": 10,
+            "LastModifiedDate": 1560801100.817,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-ContainersLatest"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Express",
+            "Type": "String",
+            "Value": "ami-0f68891db6d51e8f6",
+            "Version": 10,
+            "LastModifiedDate": 1560801149.955,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-SP2-English-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-09baaa3f237627f5c",
+            "Version": 39,
+            "LastModifiedDate": 1560799646.718,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-SP2-English-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Portuguese_Brazil-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0c4faed475be4a164",
+            "Version": 41,
+            "LastModifiedDate": 1560800044.022,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Portuguese_Brazil-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Portuguese_Portugal-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-06bd7aa0d00cae641",
+            "Version": 40,
+            "LastModifiedDate": 1560800056.916,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Portuguese_Portugal-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2012_SP4_Express",
+            "Type": "String",
+            "Value": "ami-0699cdb9632ec0098",
+            "Version": 21,
+            "LastModifiedDate": 1560800213.434,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2012_SP4_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2012_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-0f68951cf1ebcf31d",
+            "Version": 21,
+            "LastModifiedDate": 1560800375.149,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2012_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-ContainersLatest",
+            "Type": "String",
+            "Value": "ami-0ef1e77c143383440",
+            "Version": 38,
+            "LastModifiedDate": 1560800584.651,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-ContainersLatest"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Spanish-Full-Base",
+            "Type": "String",
+            "Value": "ami-0f10cf4fce86ca5c5",
+            "Version": 38,
+            "LastModifiedDate": 1560801011.101,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Spanish-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Standard",
+            "Type": "String",
+            "Value": "ami-012438e8922082a19",
+            "Version": 10,
+            "LastModifiedDate": 1560801203.428,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Turkish-Full-Base",
+            "Type": "String",
+            "Value": "ami-0b4545efbeb52b078",
+            "Version": 10,
+            "LastModifiedDate": 1560801365.063,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Turkish-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_Standard",
+            "Type": "String",
+            "Value": "ami-66ca1419",
+            "Version": 2,
+            "LastModifiedDate": 1524165145.742,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-Language_Packs-64Bit-SQL_2005_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-0e90a8b230637e752",
+            "Version": 36,
+            "LastModifiedDate": 1560799341.5,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-Language_Packs-64Bit-SQL_2005_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2008_R2_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-0f6ac4d3185388563",
+            "Version": 42,
+            "LastModifiedDate": 1560799533.346,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2008_R2_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP3_Web",
+            "Type": "String",
+            "Value": "ami-0f110a803a566af92",
+            "Version": 12,
+            "LastModifiedDate": 1560799820.98,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP3_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Swedish-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-03f70a597dd5c3707",
+            "Version": 40,
+            "LastModifiedDate": 1560800086.9,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Swedish-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2008_R2_SP3_Web",
+            "Type": "String",
+            "Value": "ami-0f4f861e5b34e0b2f",
+            "Version": 39,
+            "LastModifiedDate": 1560800189.658,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2008_R2_SP3_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-SQL_2016_SP2_Enterprise",
+            "Type": "String",
+            "Value": "ami-0d8fd00d81f1481ae",
+            "Version": 10,
+            "LastModifiedDate": 1560800592.505,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-SQL_2016_SP2_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Italian-Full-Base",
+            "Type": "String",
+            "Value": "ami-04c629b1f1cc58379",
+            "Version": 38,
+            "LastModifiedDate": 1560800848.75,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Italian-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Portuguese_Brazil-Full-Base",
+            "Type": "String",
+            "Value": "ami-0190508b5cbcd1413",
+            "Version": 38,
+            "LastModifiedDate": 1560800982.099,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Portuguese_Brazil-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base",
+            "Type": "String",
+            "Value": "ami-09ef280df1a6a5330",
+            "Version": 10,
+            "LastModifiedDate": 1560801111.998,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_Enterprise",
+            "Type": "String",
+            "Value": "ami-5bcf1124",
+            "Version": 2,
+            "LastModifiedDate": 1524165158.276,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-32Bit-Base",
+            "Type": "String",
+            "Value": "ami-07c139b7c61581cf4",
+            "Version": 35,
+            "LastModifiedDate": 1560799277.58,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-32Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Czech-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-003db22e708798219",
+            "Version": 40,
+            "LastModifiedDate": 1560799727.324,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Czech-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2012_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-041512ce2ef06925f",
+            "Version": 22,
+            "LastModifiedDate": 1560800226.346,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2012_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2016_SP2_Express",
+            "Type": "String",
+            "Value": "ami-04984f11882d72e69",
+            "Version": 10,
+            "LastModifiedDate": 1560800712.485,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2016_SP2_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Hungarian-Full-Base",
+            "Type": "String",
+            "Value": "ami-0d9865894eec3a7af",
+            "Version": 38,
+            "LastModifiedDate": 1560800840.841,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Hungarian-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2017_Enterprise",
+            "Type": "String",
+            "Value": "ami-0631d65689c497a7f",
+            "Version": 5,
+            "LastModifiedDate": 1560800913.267,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2017_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Swedish-Full-Base",
+            "Type": "String",
+            "Value": "ami-0801ec69a6cc3c9dd",
+            "Version": 38,
+            "LastModifiedDate": 1560801019.05,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Swedish-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Turkish-Full-Base",
+            "Type": "String",
+            "Value": "ami-071d4074ada1578f9",
+            "Version": 38,
+            "LastModifiedDate": 1560801032.362,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Turkish-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Spanish-Full-Base",
+            "Type": "String",
+            "Value": "ami-03a23f9353b955993",
+            "Version": 10,
+            "LastModifiedDate": 1560801341.146,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Spanish-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_Web",
+            "Type": "String",
+            "Value": "ami-f9d10f86",
+            "Version": 2,
+            "LastModifiedDate": 1524165134.496,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-06c9747facb23443a",
+            "Version": 35,
+            "LastModifiedDate": 1560799286.341,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-062d3fb9f5d18af75",
+            "Version": 43,
+            "LastModifiedDate": 1560799375.836,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-Core_SQL_2012_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-04dbab3454c06cb63",
+            "Version": 21,
+            "LastModifiedDate": 1560799388.788,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-Core_SQL_2012_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Language_Packs-64Bit-SQL_2008_R2_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-0b63f88f862d9e6ca",
+            "Version": 42,
+            "LastModifiedDate": 1560799605.404,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Language_Packs-64Bit-SQL_2008_R2_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2014_SP3_Express",
+            "Type": "String",
+            "Value": "ami-0c38fc93d6ad94ba5",
+            "Version": 12,
+            "LastModifiedDate": 1560799960.428,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2014_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Czech-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-080fd0d410f6db1bf",
+            "Version": 39,
+            "LastModifiedDate": 1560800138.389,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Czech-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Turkish-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0d8110b81bfad4a79",
+            "Version": 40,
+            "LastModifiedDate": 1560800495.992,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Turkish-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Dutch-Full-Base",
+            "Type": "String",
+            "Value": "ami-05e3429ef8a4050a1",
+            "Version": 38,
+            "LastModifiedDate": 1560800534.816,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Dutch-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2017_Enterprise",
+            "Type": "String",
+            "Value": "ami-0a7ca498460fc5786",
+            "Version": 37,
+            "LastModifiedDate": 1560800747.507,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2017_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-ContainersLatest",
+            "Type": "String",
+            "Value": "ami-0a2abd6ab079d9ca5",
+            "Version": 10,
+            "LastModifiedDate": 1560801121.92,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-ContainersLatest"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-1803-English-Core-Base",
+            "Type": "String",
+            "Value": "ami-09ccd38727183133d",
+            "Version": 22,
+            "LastModifiedDate": 1560799211.352,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-1803-English-Core-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2012_SP4_Web",
+            "Type": "String",
+            "Value": "ami-00f5e601392d52c97",
+            "Version": 21,
+            "LastModifiedDate": 1560799495.794,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2012_SP4_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Language_Packs-64Bit-SQL_2008_R2_SP3_Express",
+            "Type": "String",
+            "Value": "ami-010b3555cde72d805",
+            "Version": 43,
+            "LastModifiedDate": 1560799597.487,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Language_Packs-64Bit-SQL_2008_R2_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-SP2-Portuguese_Brazil-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0fc588e2ca837b12b",
+            "Version": 38,
+            "LastModifiedDate": 1560799686.387,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-SP2-Portuguese_Brazil-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0e38a7fb8cd1e16fe",
+            "Version": 41,
+            "LastModifiedDate": 1560799748.197,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2016_SP2_Enterprise",
+            "Type": "String",
+            "Value": "ami-024e6ee410af37076",
+            "Version": 12,
+            "LastModifiedDate": 1560799984.205,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2016_SP2_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-004eee72537372b92",
+            "Version": 39,
+            "LastModifiedDate": 1560800323.045,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Portuguese_Brazil-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-09d7a090b021bd2a7",
+            "Version": 39,
+            "LastModifiedDate": 1560800448.241,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Portuguese_Brazil-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-P3",
+            "Type": "String",
+            "Value": "ami-03092b495491fd268",
+            "Version": 24,
+            "LastModifiedDate": 1560800794.954,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-P3"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Enterprise",
+            "Type": "String",
+            "Value": "ami-0b34183d1ff79729f",
+            "Version": 10,
+            "LastModifiedDate": 1560801182.615,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-1709-English-Core-ContainersLatest",
+            "Type": "String",
+            "Value": "ami-02752ac6936443003",
+            "Version": 22,
+            "LastModifiedDate": 1560799197.96,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-1709-English-Core-ContainersLatest"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-04859b8e219da735e",
+            "Version": 42,
+            "LastModifiedDate": 1560799506.193,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-SP2-English-64Bit-SQL_2008_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-09b4b8acdec008ad9",
+            "Version": 39,
+            "LastModifiedDate": 1560799666.017,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-SP2-English-64Bit-SQL_2008_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Chinese_Traditional_Hong_Kong-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-07b97cd259eb6a7be",
+            "Version": 38,
+            "LastModifiedDate": 1560799704.268,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Chinese_Traditional_Hong_Kong-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP3_Express",
+            "Type": "String",
+            "Value": "ami-076edadef45767e11",
+            "Version": 12,
+            "LastModifiedDate": 1560799798.614,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2016_SP2_Enterprise",
+            "Type": "String",
+            "Value": "ami-0e4882c3641296db4",
+            "Version": 12,
+            "LastModifiedDate": 1560799831.136,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2016_SP2_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Chinese_Simplified-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-02865520c427c056f",
+            "Version": 39,
+            "LastModifiedDate": 1560800105.871,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Chinese_Simplified-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2012_SP4_Web",
+            "Type": "String",
+            "Value": "ami-033f188e57fa6e740",
+            "Version": 22,
+            "LastModifiedDate": 1560800234.305,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2012_SP4_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2014_SP3_Web",
+            "Type": "String",
+            "Value": "ami-025d751d3cf4d08e5",
+            "Version": 12,
+            "LastModifiedDate": 1560800421.545,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2014_SP3_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-Base",
+            "Type": "String",
+            "Value": "ami-0daaf92c7092d94f5",
+            "Version": 38,
+            "LastModifiedDate": 1560800856.765,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-1903-English-Core-ContainersLatest",
+            "Type": "String",
+            "Value": "ami-002f8480ea336f777",
+            "Version": 2,
+            "LastModifiedDate": 1560799265.456,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-1903-English-Core-ContainersLatest"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-Language_Packs-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-09a40c1276cb97b8b",
+            "Version": 35,
+            "LastModifiedDate": 1560799322.817,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-Language_Packs-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2012_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-015d20f2aec564748",
+            "Version": 21,
+            "LastModifiedDate": 1560799568.334,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2012_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-Core",
+            "Type": "String",
+            "Value": "ami-0662ef4881d67d677",
+            "Version": 41,
+            "LastModifiedDate": 1560799760.208,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-Core"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP2_Web",
+            "Type": "String",
+            "Value": "ami-081711f38cac032e3",
+            "Version": 36,
+            "LastModifiedDate": 1559685045.68,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP2_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2016_SP2_Standard",
+            "Type": "String",
+            "Value": "ami-03e1c2e028fcac522",
+            "Version": 12,
+            "LastModifiedDate": 1560800002.386,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2016_SP2_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2014_SP3_Web",
+            "Type": "String",
+            "Value": "ami-04540b7b340a2e117",
+            "Version": 12,
+            "LastModifiedDate": 1560800265.955,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2014_SP3_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Swedish-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0c6b232c314512ead",
+            "Version": 39,
+            "LastModifiedDate": 1560800484.903,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Swedish-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Chinese_Simplified-Full-Base",
+            "Type": "String",
+            "Value": "ami-07781350104b917d6",
+            "Version": 38,
+            "LastModifiedDate": 1560800505.896,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Chinese_Simplified-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20190212-SQL_2017_Enterprise",
+            "Type": "String",
+            "Value": "ami-0f416ce1a51a30715",
+            "Version": 1,
+            "LastModifiedDate": 1558147942.371,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20190212-SQL_2017_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-1803-English-Core-ContainersLatest",
+            "Type": "String",
+            "Value": "ami-07ba7f74633a62c97",
+            "Version": 22,
+            "LastModifiedDate": 1560799223.552,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-1803-English-Core-ContainersLatest"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2008_R2_SP3_Web",
+            "Type": "String",
+            "Value": "ami-0120e2457af00484e",
+            "Version": 42,
+            "LastModifiedDate": 1560799548.439,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2008_R2_SP3_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP3_Enterprise",
+            "Type": "String",
+            "Value": "ami-0d787d97b2df2cc12",
+            "Version": 12,
+            "LastModifiedDate": 1560799787.614,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2014_SP3_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2016_SP2_Express",
+            "Type": "String",
+            "Value": "ami-0d015886bee8239f0",
+            "Version": 12,
+            "LastModifiedDate": 1560799992.181,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2016_SP2_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2012_SP4_Enterprise",
+            "Type": "String",
+            "Value": "ami-0659652da36dc8c20",
+            "Version": 5,
+            "LastModifiedDate": 1560800200.56,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2012_SP4_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2014_SP3_Express",
+            "Type": "String",
+            "Value": "ami-0a72142be95f25a24",
+            "Version": 12,
+            "LastModifiedDate": 1560800244.227,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-English-64Bit-SQL_2014_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2017_Web",
+            "Type": "String",
+            "Value": "ami-0496c34f2cd8c65f4",
+            "Version": 38,
+            "LastModifiedDate": 1560800783.874,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2017_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-German-Full-Base",
+            "Type": "String",
+            "Value": "ami-0b5cf5d54aeabf0e1",
+            "Version": 10,
+            "LastModifiedDate": 1560801244.244,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-German-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Polish-Full-Base",
+            "Type": "String",
+            "Value": "ami-00c57781bcf446eda",
+            "Version": 10,
+            "LastModifiedDate": 1560801299.57,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Polish-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20190313-x86_64-gp2-SQL_2017_Enterprise",
+            "Type": "String",
+            "Value": "ami-085854121fbe05405",
+            "Version": 1,
+            "LastModifiedDate": 1558147832.445,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20190313-x86_64-gp2-SQL_2017_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-1903-English-Core-Base",
+            "Type": "String",
+            "Value": "ami-0ee0696a5591dee75",
+            "Version": 2,
+            "LastModifiedDate": 1560799255.032,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-1903-English-Core-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-SQL_2005_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-0f6660fd8c511da1d",
+            "Version": 35,
+            "LastModifiedDate": 1560799303.518,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-SQL_2005_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2012_SP4_Enterprise",
+            "Type": "String",
+            "Value": "ami-061b2bf75cc9742f8",
+            "Version": 22,
+            "LastModifiedDate": 1560799463.95,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2012_SP4_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2008_R2_SP3_Express",
+            "Type": "String",
+            "Value": "ami-04353a5205f17b548",
+            "Version": 42,
+            "LastModifiedDate": 1560799519.688,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Japanese-64Bit-SQL_2008_R2_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Portuguese_Brazil-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-01e0e1a669454856f",
+            "Version": 43,
+            "LastModifiedDate": 1560799614.69,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-Portuguese_Brazil-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2008_R2_SP3_Express",
+            "Type": "String",
+            "Value": "ami-0ac63fb429e1c83e2",
+            "Version": 39,
+            "LastModifiedDate": 1560800336.096,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2008_R2_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-Base",
+            "Type": "String",
+            "Value": "ami-0ca463a079d8033ae",
+            "Version": 38,
+            "LastModifiedDate": 1560800560.699,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base",
+            "Type": "String",
+            "Value": "ami-0d41aee8a57fdb850",
+            "Version": 39,
+            "LastModifiedDate": 1560800637.384,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-French-Full-Base",
+            "Type": "String",
+            "Value": "ami-01dedd96d7ac5643c",
+            "Version": 38,
+            "LastModifiedDate": 1560800818.014,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-French-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2016_SP2_Enterprise",
+            "Type": "String",
+            "Value": "ami-0b3233ac3727cf8a4",
+            "Version": 10,
+            "LastModifiedDate": 1560800868.796,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2016_SP2_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-1809-English-Core-Base",
+            "Type": "String",
+            "Value": "ami-073c7f8feb4e04583",
+            "Version": 12,
+            "LastModifiedDate": 1560799232.032,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-1809-English-Core-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-Language_Packs-64Bit-SQL_2005_SP4_Express",
+            "Type": "String",
+            "Value": "ami-0c1416bbefee3b1d1",
+            "Version": 35,
+            "LastModifiedDate": 1560799331.027,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-Language_Packs-64Bit-SQL_2005_SP4_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2012_SP4_Web",
+            "Type": "String",
+            "Value": "ami-0feb612b07d387ad2",
+            "Version": 21,
+            "LastModifiedDate": 1560800385.119,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2012_SP4_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2012_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-06530aa780df18573",
+            "Version": 5,
+            "LastModifiedDate": 1560800669.359,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2012_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2016_SP2_Express",
+            "Type": "String",
+            "Value": "ami-0faf80e552c498944",
+            "Version": 10,
+            "LastModifiedDate": 1560800881.798,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2016_SP2_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Czech-Full-Base",
+            "Type": "String",
+            "Value": "ami-02224d8ecefb8a091",
+            "Version": 10,
+            "LastModifiedDate": 1560801067.375,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Czech-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Enterprise",
+            "Type": "String",
+            "Value": "ami-00639fe7a2691fc63",
+            "Version": 10,
+            "LastModifiedDate": 1560801140.678,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-English-Tesla",
+            "Type": "String",
+            "Value": "ami-036320a9cbbb42790",
+            "Version": 2,
+            "LastModifiedDate": 1560801222.292,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-English-Tesla"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20190313-x86_64-gp2-SQL_2017_Web",
+            "Type": "String",
+            "Value": "ami-0877e0c7449e93699",
+            "Version": 1,
+            "LastModifiedDate": 1558147912.185,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20190313-x86_64-gp2-SQL_2017_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20190212-SQL_2017_Express",
+            "Type": "String",
+            "Value": "ami-01eb53ea4285be7e9",
+            "Version": 1,
+            "LastModifiedDate": 1558147954.501,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20190212-SQL_2017_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-1809-English-Core-ContainersLatest",
+            "Type": "String",
+            "Value": "ami-01607a0bf148d5188",
+            "Version": 12,
+            "LastModifiedDate": 1560799242.153,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-1809-English-Core-ContainersLatest"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2012_SP4_Standard",
+            "Type": "String",
+            "Value": "ami-0bc3f0d232d8c8ca8",
+            "Version": 21,
+            "LastModifiedDate": 1560799487.517,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2012_SP4_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Turkish-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0dc72891a5ab7274c",
+            "Version": 40,
+            "LastModifiedDate": 1560800094.863,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Turkish-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Polish-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-05c13384cccab91eb",
+            "Version": 40,
+            "LastModifiedDate": 1560800437.408,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Polish-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Portuguese_Portugal-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-09a3cfd17caa4b5f0",
+            "Version": 39,
+            "LastModifiedDate": 1560800457.159,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Portuguese_Portugal-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Spanish-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0551b7b570b0f3668",
+            "Version": 40,
+            "LastModifiedDate": 1560800474.889,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Spanish-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Czech-Full-Base",
+            "Type": "String",
+            "Value": "ami-0f49a41d13055119f",
+            "Version": 38,
+            "LastModifiedDate": 1560800521.592,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Czech-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Dutch-Full-Base",
+            "Type": "String",
+            "Value": "ami-0f9d0c4cd74be2ee5",
+            "Version": 10,
+            "LastModifiedDate": 1560801079.536,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Dutch-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20190313-x86_64-gp2-SQL_2017_Standard",
+            "Type": "String",
+            "Value": "ami-087a6127ba9676bb6",
+            "Version": 1,
+            "LastModifiedDate": 1558147900.704,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/amzn2-ami-hvm-2.0.20190313-x86_64-gp2-SQL_2017_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20190212-SQL_2017_Standard",
+            "Type": "String",
+            "Value": "ami-003dae68d018759d1",
+            "Version": 1,
+            "LastModifiedDate": 1558147968.641,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/ubuntu-xenial-16.04-amd64-server-20190212-SQL_2017_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-1709-English-Core-Base",
+            "Type": "String",
+            "Value": "ami-0fbe5470a4d47f2b0",
+            "Version": 22,
+            "LastModifiedDate": 1560799185.673,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-1709-English-Core-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-Core",
+            "Type": "String",
+            "Value": "ami-0e03f2988b13d832c",
+            "Version": 43,
+            "LastModifiedDate": 1560799402.789,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-Core"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-SP2-Portuguese_Brazil-32Bit-Base",
+            "Type": "String",
+            "Value": "ami-011bb8ffb0103e964",
+            "Version": 38,
+            "LastModifiedDate": 1560799674.275,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-SP2-Portuguese_Brazil-32Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2016_SP2_Web",
+            "Type": "String",
+            "Value": "ami-0fd7d2c1f62098e51",
+            "Version": 12,
+            "LastModifiedDate": 1560799861.504,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-SQL_2016_SP2_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Korean-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0ee14ad390da70caf",
+            "Version": 40,
+            "LastModifiedDate": 1560800024.207,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Korean-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Dutch-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-0a19ee71801577c68",
+            "Version": 39,
+            "LastModifiedDate": 1560800150.419,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Dutch-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2012_SP4_Express",
+            "Type": "String",
+            "Value": "ami-0d96769d156c277dd",
+            "Version": 21,
+            "LastModifiedDate": 1560800362.275,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2012_SP4_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-64Bit-SQL_2012_SP4_Enterprise",
+            "Type": "String",
+            "Value": "ami-01a6fd909508a22aa",
+            "Version": 9,
+            "LastModifiedDate": 1560800546.822,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-64Bit-SQL_2012_SP4_Enterprise"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-SQL_2016_SP2_Web",
+            "Type": "String",
+            "Value": "ami-0ab4b77000d3b973b",
+            "Version": 10,
+            "LastModifiedDate": 1560800619.367,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-SQL_2016_SP2_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Portuguese_Brazil-Full-Base",
+            "Type": "String",
+            "Value": "ami-03204510d834ccd0a",
+            "Version": 10,
+            "LastModifiedDate": 1560801311.426,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Portuguese_Brazil-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2008_R2_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-0aeb91a32507afe1e",
+            "Version": 42,
+            "LastModifiedDate": 1560799438.921,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SQL_2008_R2_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SharePoint_2010_SP2_Foundation",
+            "Type": "String",
+            "Value": "ami-03816ec5dcdec9b5e",
+            "Version": 42,
+            "LastModifiedDate": 1560799416.867,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2008-R2_SP1-English-64Bit-SharePoint_2010_SP2_Foundation"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2014_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-03b08d36fe93f892f",
+            "Version": 12,
+            "LastModifiedDate": 1560799973.363,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Japanese-64Bit-SQL_2014_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Spanish-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-017ac4d2b1ad72eab",
+            "Version": 40,
+            "LastModifiedDate": 1560800078.765,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-Spanish-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2014_SP3_Express",
+            "Type": "String",
+            "Value": "ami-055996ef97e76b46b",
+            "Version": 10,
+            "LastModifiedDate": 1560800396.963,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Japanese-64Bit-SQL_2014_SP3_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-SQL_2016_SP2_Express",
+            "Type": "String",
+            "Value": "ami-09ceb9a0cf1b687b3",
+            "Version": 10,
+            "LastModifiedDate": 1560800602.403,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-SQL_2016_SP2_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-SQL_2016_SP2_Standard",
+            "Type": "String",
+            "Value": "ami-001b5dbbbb521c2aa",
+            "Version": 10,
+            "LastModifiedDate": 1560800611.397,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Core-SQL_2016_SP2_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2017_Standard",
+            "Type": "String",
+            "Value": "ami-00080d2298a957d5f",
+            "Version": 38,
+            "LastModifiedDate": 1560800770.655,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2017_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Tesla",
+            "Type": "String",
+            "Value": "ami-0d8410758cd07bfb7",
+            "Version": 2,
+            "LastModifiedDate": 1560800808.025,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Tesla"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Portuguese_Portugal-Full-Base",
+            "Type": "String",
+            "Value": "ami-016a00fb17b410d50",
+            "Version": 10,
+            "LastModifiedDate": 1560801324.325,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Portuguese_Portugal-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-HyperV",
+            "Type": "String",
+            "Value": "ami-0dec842aedb88b9b0",
+            "Version": 22,
+            "LastModifiedDate": 1560799769.149,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-64Bit-HyperV"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-P3",
+            "Type": "String",
+            "Value": "ami-0b509d4f28a7584b3",
+            "Version": 27,
+            "LastModifiedDate": 1560799886.664,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-R2_RTM-English-P3"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Korean-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-000a96e8f9e607438",
+            "Version": 39,
+            "LastModifiedDate": 1560800429.536,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Korean-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Russian-64Bit-Base",
+            "Type": "String",
+            "Value": "ami-042a31bb964a02d57",
+            "Version": 40,
+            "LastModifiedDate": 1560800465.011,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2012-RTM-Russian-64Bit-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Chinese_Traditional-Full-Base",
+            "Type": "String",
+            "Value": "ami-0b1299200b84ed413",
+            "Version": 38,
+            "LastModifiedDate": 1560800513.758,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Chinese_Traditional-Full-Base"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2014_SP3_Standard",
+            "Type": "String",
+            "Value": "ami-0fb699e33034a793c",
+            "Version": 5,
+            "LastModifiedDate": 1560800692.169,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2014_SP3_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2016_SP2_Web",
+            "Type": "String",
+            "Value": "ami-0fc0080661890c995",
+            "Version": 10,
+            "LastModifiedDate": 1560800734.484,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2016_SP2_Web"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2017_Express",
+            "Type": "String",
+            "Value": "ami-0a8ec19fc54178e3b",
+            "Version": 38,
+            "LastModifiedDate": 1560800758.529,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-SQL_2017_Express"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2016_SP2_Standard",
+            "Type": "String",
+            "Value": "ami-0d80c331cb6d8beec",
+            "Version": 10,
+            "LastModifiedDate": 1560800893.256,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-SQL_2016_SP2_Standard"
+        },
+        {
+            "Name": "/aws/service/ami-windows-latest/Windows_Server-2019-Swedish-Full-Base",
+            "Type": "String",
+            "Value": "ami-0da6696498b4220d9",
+            "Version": 10,
+            "LastModifiedDate": 1560801353.061,
+            "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/ami-windows-latest/Windows_Server-2019-Swedish-Full-Base"
+        }
+    ]
+}

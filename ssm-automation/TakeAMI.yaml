@@ -4,7 +4,7 @@ description: "Make an AWS AMI Yours"
 assumeRole: "{{AutomationAssumeRole}}"
 parameters:
   AMI: 
-    default: "{{ssm:/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-Base}}"
+    default: "ssm:/aws/service/ami-windows-latest/Windows_Server-2003-R2_SP2-English-64Bit-Base"
     description: "Description Of Param"
     type: "String" 
 mainSteps:
@@ -82,6 +82,7 @@ mainSteps:
       AutomationAssumeRole: ''
 - name: deleteStack
   action: aws:deleteStack
+  isEnd: true
   onFailure: Continue
   inputs:
     StackName: "TakeAMI"
