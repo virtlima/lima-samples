@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Deploy MOF Authoring Server"
+Parameters:
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+  MOFBucket:
+    Default: "almofs"
+    Description: S3 bucket name for the MOF files.
+    Type: String
+  KeyPairName:
+    Description: Public/private key pair, which allows you to securely connect to your instance
+      after it launches.
+    Type: AWS::EC2::KeyPair::KeyName 
+Resources:
+  WebServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: IIS Web Server Security Groups
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 3389
+        ToPort: 3389
+        CidrIp: 0.0.0.0/0
+  WebServerRole: 
+    Type : AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${MOFBucket}/*'
+                Effect: Allow
+          PolicyName: s3-policy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "ec2.amazonaws.com"
+            - "ssm.amazonaws.com"
+          Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+  IamInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+      - !Ref WebServerRole
+  WebServer1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: "t3.large"
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroups: 
+        - !Ref WebServerSG
+      KeyName: !Ref 'KeyPairName'
+      Tags:
+      - Key: "Name"
+        Value: "WebServer1"
+      - Key: "Build"
+        Value: "Standard"
+  WebServer2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: "t3.large"
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroups: 
+        - !Ref WebServerSG
+      KeyName: !Ref 'KeyPairName'
+      Tags:
+      - Key: "Name"
+        Value: "WebServer2"
+      - Key: "Build"
+        Value: "Standard"
+  WebServer3:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: "t3.large"
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroups: 
+        - !Ref WebServerSG
+      KeyName: !Ref 'KeyPairName'
+      Tags:
+      - Key: "Name"
+        Value: "WebServer3"
+      - Key: "Build"
+        Value: "Standard"
+Outputs:
+  WebServer1Public:
+    Value: !GetAtt 'WebServer1.PublicDnsName'
+    Description: Public DNS for WebServer1
+  WebServer2Public:
+    Value: !GetAtt 'WebServer2.PublicDnsName'
+    Description: Public DNS for WebServer2
+  WebServer3Public:
+    Value: !GetAtt 'WebServer3.PublicDnsName'
+    Description: Public DNS for WebServer3

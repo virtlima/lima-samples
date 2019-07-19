@@ -1,0 +1,47 @@
+version: 0.2
+
+#env:
+  #variables:
+     # key: "value"
+     # key: "value"
+  #parameter-store:
+     # key: "value"
+     # key: "value"
+  #git-credential-helper: yes
+
+phases:
+  install:
+    #If you use the Ubuntu standard image 2.0 or later, you must specify runtime-versions.
+    #If you specify runtime-versions and use an image other than Ubuntu standard image 2.0, the build fails.
+    runtime-versions:
+      docker: 18
+      python: 3.7
+    commands:
+       - pip install --upgrade pip
+       - pip install mkdocs
+       - pip install mkdocs-material
+  pre_build:
+    commands:
+      - git remote -v
+      - git remote set-url origin https://github.com/virtlima/aws-workshop-for-win-dotnet-mssql.git
+      - git remote -v
+  build:
+    commands:
+      - echo Current directory is $CODEBUILD_SRC_DIR
+      - ls -la
+      - mkdocs gh-deploy
+      # - command
+  #post_build:
+    #commands:
+      # - command
+      # - command
+#artifacts:
+  #files:
+    # - location
+    # - location
+  #name: $(date +%Y-%m-%d)
+  #discard-paths: yes
+  #base-directory: location
+#cache:
+  #paths:
+    # - paths

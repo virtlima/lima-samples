@@ -1,42 +1,44 @@
 ---
 schemaVersion: "0.3"
-description: "Create a .NET Framework Container for CodeBuild"
+description: "Generate MOFs and upload to S3"
+# Role that is utilized to perform the steps within the Automation Document.
 assumeRole: "{{AutomationAssumeRole}}"
+# Gathering parameters needed to configure DCs in the Quick Start
 parameters:
-  AMI: 
-    default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-ContainersLatest"
-    description: "Description Of Param"
-    type: "String"
-  BucketName: 
+  MOFBucket: 
     default: ""
-    description: "Name of Target S3 Bucket"
+    description: "Name of S3 Bucket to Store MOF Files"
+    type: "String"
+  AMI: 
+    default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+    description: "SSM AMI String for CFN"
     type: "String"
   AutomationAssumeRole:
-    default: ""
+    type: "String"
     description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
-    type: "String" 
+    default: ""
 mainSteps:
 - name: createStack
   action: aws:createStack
   inputs:
-    StackName: "DotNetFrameworkContainer"
+    StackName: "AuthorMof"
     Capabilities: [ "CAPABILITY_IAM" ]
     TemplateBody: |
-      Description: "Deploy Instance to Create a Container"
+      Description: "Deploy MOF Authoring Server"
       Parameters:
         LatestAmiId:
           Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
           Default: "{{AMI}}"
-        BucketName:
-          Type: "String"
-          Default: "{{BucketName}}"
-          Description: "Name of Target S3 Bucket"
+        MOFBucket:
+          Default: "{{MOFBucket}}"
+          Description: S3 bucket name for the MOF files.
+          Type: String 
       Resources:
         SecurityGroup:
           Type: AWS::EC2::SecurityGroup
           Properties:
-            GroupDescription: DotNetContainer
-        DockerCreateRole: 
+            GroupDescription: AuthorMof
+        AuthorMofRole: 
           Type : AWS::IAM::Role
           Properties:
             Policies:
@@ -45,13 +47,10 @@ mainSteps:
                   Statement:
                     - Action:
                         - s3:GetObject
-                      Resource: !Sub 'arn:${AWS::Partition}:s3:::${BucketName}/*'
+                        - s3:PutObject
+                      Resource: !Sub 'arn:${AWS::Partition}:s3:::${MOFBucket}/*'
                       Effect: Allow
-                PolicyName: s3-instance-bucket-policy
-            Path: /
-            ManagedPolicyArns:
-            - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
-            - "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+                PolicyName: s3-policy
             AssumeRolePolicyDocument:
               Version: "2012-10-17"
               Statement:
@@ -61,20 +60,22 @@ mainSteps:
                   - "ec2.amazonaws.com"
                   - "ssm.amazonaws.com"
                 Action: "sts:AssumeRole"
+            ManagedPolicyArns:
+            - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
         IamInstanceProfile:
           Type: "AWS::IAM::InstanceProfile"
           Properties:
             Roles:
-            - !Ref DockerCreateRole
-        EC2Instance:
+            - !Ref AuthorMofRole
+        AuthorMofInstance:
           Type: "AWS::EC2::Instance"
           Properties:
             ImageId: !Ref LatestAmiId
-            InstanceType: "t3.medium"
+            InstanceType: "t3.large"
             IamInstanceProfile: !Ref IamInstanceProfile
             Tags:
             - Key: "Name"
-              Value: "DotNetFrameworkContainer"
+              Value: "AuthorMof"
 - name: "getInstanceId"
   action: aws:executeAwsApi
   inputs:
@@ -82,14 +83,29 @@ mainSteps:
     Api: DescribeInstances
     Filters:  
     - Name: "tag:Name"
-      Values: [ "DotNetFrameworkContainer" ]
+      Values: [ "AuthorMof" ]
     - Name: "instance-state-name"
       Values: [ "running" ]
   outputs:
   - Name: InstanceId
-    Selector: "$.Reservations..Instances..InstanceId"
-    Type: "StringList"
-- name: "CreateDockerImage"
+    Selector: "$.Reservations[0].Instances[0].InstanceId"
+    Type: "String"
+- name: "InstallDSCModules"
+  action: aws:runCommand
+  onFailure: "step:deleteStack"
+  inputs:
+    DocumentName: AWS-RunPowerShellScript
+    InstanceIds: 
+      - "{{getInstanceId.InstanceId}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+    Parameters:
+      commands: 
+        - |  
+           Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+           Install-Module -Name ComputerManagementDsc
+- name: "DomainJoinMof"
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
@@ -100,9 +116,22 @@ mainSteps:
       CloudWatchOutputEnabled: "true"
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{BucketName}}/Dockerfile"}'
-      commandLine: "docker build -t dotnetframeworkbuildtools:latest -m 2GB ."
-- name: "CreateECRRepo"
+      sourceInfo: '{"path": "https://{{MOFBucket}}.s3.amazonaws.com/DomainJoin.ps1"}'
+      commandLine: "./DomainJoin.ps1"
+- name: "WebSiteBuildMof"
+  action: "aws:runCommand"
+  onFailure: "step:deleteStack"
+  inputs:
+    DocumentName: "AWS-RunRemoteScript"
+    InstanceIds:
+    - "{{getInstanceId.InstanceId}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+    Parameters:
+      sourceType: "S3"
+      sourceInfo: '{"path": "https://{{MOFBucket}}.s3.amazonaws.com/WebSiteBuild.ps1"}'
+      commandLine: "./WebSiteBuild.ps1" 
+- name: "CopyMofs"
   action: aws:runCommand
   onFailure: "step:deleteStack"
   inputs:
@@ -113,31 +142,12 @@ mainSteps:
       CloudWatchOutputEnabled: "true"
     Parameters:
       commands: 
-        - |     
-            New-ECRRepository -RepositoryName dotnetframeworkbuildtools
-- name: "PushDockerImagetoECR"
-  action: aws:runCommand
-  onFailure: "step:deleteStack"
-  inputs:
-    DocumentName: AWS-RunPowerShellScript
-    InstanceIds: 
-      - "{{getInstanceId.InstanceId}}"
-    CloudWatchOutputConfig:
-      CloudWatchOutputEnabled: "true"
-    Parameters:
-      commands: 
-        - |     
-           $Region = (Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/dynamic/instance-identity/document).region
-           $AccountID = (Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/dynamic/instance-identity/document).accountId
-
-           $ecrurl = $AccountID + '.dkr.ecr.' + $Region + '.amazonaws.com/dotnetframeworkbuildtools:latest'
-
-           Invoke-Expression -Command (Get-ECRLoginCommand -Region $Region).Command
-           docker tag dotnetframeworkbuildtools:latest $ecrurl
-           docker push $ecrurl
+        - |  
+           Write-S3Object -BucketName "{{MOFBucket}}" -Key 'buildwebsite.mof' -File C:\MofFiles\WebsiteTest\localhost.mof
+           Write-S3Object -BucketName "{{MOFBucket}}" -Key 'domainjoin.mof' -File C:\MofFiles\DomainJoin\localhost.mof
 - name: deleteStack
   action: aws:deleteStack
   isEnd: true
   onFailure: Continue
   inputs:
-    StackName: "DotNetFrameworkContainer"
+    StackName: "AuthorMof"

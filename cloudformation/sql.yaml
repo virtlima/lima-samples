@@ -1,0 +1,1192 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This template deploys two Windows Server Failover Clustering (WSFC) and SQL Server
+  AlwaysOn Availability Group nodes. This template is intended to be installed into
+  an existing VPC that was built using the sample reference architecture titled: "Implementing
+  Active Directory Domain Services in the AWS Cloud" **WARNING** This template creates
+  Amazon EC2 Windows instance and related resources. You will be billed for the AWS
+  resources used if you create a stack from this template. QS(0003)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network configuration
+        Parameters:
+          - ThirdAZ
+          - VPCID
+          - PrivateSubnet1ID
+          - PrivateSubnet2ID
+          - PrivateSubnet3ID
+      - Label:
+          default: Amazon EC2 configuration
+        Parameters:
+          - KeyPairName
+          - HostType
+          - DedicatedHostAMI
+      - Label:
+          default: Active Directory configuration
+        Parameters:
+          - ADScenarioType
+          - DomainDNSName
+          - DomainNetBIOSName
+          - DomainAdminUser
+          - DomainAdminPassword
+          - DomainMemberSGID
+      - Label:
+          default: SQL Server configuration
+        Parameters:
+          - SQLServerVersion
+          - SQLServiceAccount
+          - SQLServiceAccountPassword
+          - SQLLicenseProvided
+          - AvailabiltyGroupName
+          - Volume1Size
+          - Volume1Type
+          - Volume1Iops
+          - Volume2Size
+          - Volume2Type
+          - Volume2Iops
+          - Volume3Size
+          - Volume3Type
+          - Volume3Iops
+      - Label:
+          default: Failover cluster configuration
+        Parameters:
+          - ClusterName
+          - WSFCFileServerInstanceType
+          - WSFCFileServerNetBIOSName
+          - WSFCFileServerPrivateIP
+          - WSFCNode1InstanceType
+          - WSFCNode1NetBIOSName
+          - WSFCNode1PrivateIP1
+          - WSFCNode1PrivateIP2
+          - WSFCNode1PrivateIP3
+          - DedicatedHostIDNode1
+          - WSFCNode2InstanceType
+          - WSFCNode2NetBIOSName
+          - WSFCNode2PrivateIP1
+          - WSFCNode2PrivateIP2
+          - WSFCNode2PrivateIP3
+          - DedicatedHostIDNode2
+          - WSFCNode3InstanceType
+          - WSFCNode3NetBIOSName
+          - WSFCNode3PrivateIP1
+          - WSFCNode3PrivateIP2
+          - WSFCNode3PrivateIP3
+          - DedicatedHostIDNode3
+      - Label:
+          default: AWS Systems Manager AMI configuration
+        Parameters:
+          - WS2019FULLBASE
+          - WS2019FULLSQL2016SP2ENT
+          - WS2019FULLSQL2017ENT
+      - Label:
+          default: AWS Quick Start configuration
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+    ParameterLabels:
+      ADScenarioType:
+        default: AD scenario type
+      AvailabiltyGroupName:
+        default: Availability group name
+      ClusterName:
+        default: Cluster NetBIOS name
+      DedicatedHostAMI:
+        default: BYOL AMI to use on dedicated host
+      DedicatedHostIDNode1:
+        default: Dedicated host ID for node 1 (requires tenancy set to "dedicated host")
+      DedicatedHostIDNode2:
+        default: Dedicated host ID for node 2 (requires tenancy set to "dedicated host")
+      DedicatedHostIDNode3:
+        default: Dedicated host ID for node 3 (requires tenancy set to "dedicated host")
+      DomainAdminPassword:
+        default: Domain admin password
+      DomainAdminUser:
+        default: Domain admin user name
+      DomainDNSName:
+        default: Domain DNS name
+      DomainMemberSGID:
+        default: Security group ID for AD domain members
+      DomainNetBIOSName:
+        default: Domain NetBIOS name
+      HostType:
+        default: Tenancy
+      KeyPairName:
+        default: Key pair name
+      PrivateSubnet1ID:
+        default: Private subnet 1 ID
+      PrivateSubnet2ID:
+        default: Private subnet 2 ID
+      PrivateSubnet3ID:
+        default: Private subnet 3 ID
+      QSS3BucketName:
+        default: Quick Start S3 bucket name
+      QSS3KeyPrefix:
+        default: Quick Start S3 key prefix
+      SQLLicenseProvided:
+        default: Amazon-provided SQL Server license
+      SQLServerVersion:
+        default: SQL Server version
+      SQLServiceAccount:
+        default: Service account name
+      SQLServiceAccountPassword:
+        default: Service account password
+      ThirdAZ:
+        default: Third Availability Zone
+      Volume1Iops:
+        default: Data volume IOPS
+      Volume1Size:
+        default: Data volume size
+      Volume1Type:
+        default: Data volume type
+      Volume2Iops:
+        default: Logs volume IOPS
+      Volume2Size:
+        default: Logs volume size
+      Volume2Type:
+        default: Logs volume type
+      Volume3Iops:
+        default: TempDB volume IOPS
+      Volume3Size:
+        default: TempDB volume size
+      Volume3Type:
+        default: TempDB volume type
+      VPCID:
+        default: VPC ID
+      WSFCFileServerInstanceType:
+        default: File server instance type
+      WSFCFileServerNetBIOSName:
+        default: File server NetBIOS name
+      WSFCFileServerPrivateIP:
+        default: File server private IP address
+      WSFCNode1InstanceType:
+        default: Instance type for cluster node 1
+      WSFCNode1NetBIOSName:
+        default: Cluster node 1 NetBIOS name
+      WSFCNode1PrivateIP1:
+        default: Cluster node 1 private IP address 1
+      WSFCNode1PrivateIP2:
+        default: Cluster node 1 private IP address 2
+      WSFCNode1PrivateIP3:
+        default: Cluster node 1 private IP address 3
+      WSFCNode2InstanceType:
+        default: Instance type for cluster node 2
+      WSFCNode2NetBIOSName:
+        default: Cluster node 2 NetBIOS name
+      WSFCNode2PrivateIP1:
+        default: Cluster node 2 private IP address 1
+      WSFCNode2PrivateIP2:
+        default: Cluster node 2 private IP address 2
+      WSFCNode2PrivateIP3:
+        default: Cluster node 2 private IP address 3
+      WSFCNode3InstanceType:
+        default: Instance type for cluster node 3
+      WSFCNode3NetBIOSName:
+        default: Cluster node 3 NetBIOS name
+      WSFCNode3PrivateIP1:
+        default: Cluster node 3 private IP address 1
+      WSFCNode3PrivateIP2:
+        default: Cluster node 3 private IP address 2
+      WSFCNode3PrivateIP3:
+        default: Cluster node 3 private IP address 3
+      WS2019FULLBASE: 
+        default: Windows Server 2019 full base AMI
+      WS2019FULLSQL2016SP2ENT:
+        default: Windows Server 2019 full locale English with SQL Enterprise 2016 SP1 AMI
+      WS2019FULLSQL2017ENT:
+        default: Windows Server 2019 Locale English with SQL Enterprise 2017 AMI
+Parameters:
+  ADScenarioType:
+    AllowedValues:
+      - AWS Directory Service for Microsoft AD (Enterprise Edition)
+      - Microsoft AD on Amazon EC2
+    Default: AWS Directory Service for Microsoft AD (Enterprise Edition)
+    Description: 'Select the type of AD DS deployment to use: AWS Directory Service
+      for Microsoft AD or managing your own Amazon EC2 AD instances.'
+    Type: String
+  ClusterName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: "WSFCCluster1"
+    Description: "NetBIOS name of the cluster (up to 15 characters)."
+    MaxLength: '15'
+    MinLength: '1'
+    Type: "String"
+  AvailabiltyGroupName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: "SQLAG1"
+    Description: "NetBIOS name of the availability group (up to 15 characters)."
+    MaxLength: '15'
+    MinLength: '1'
+    Type: "String"
+  DedicatedHostAMI:
+    Default: ''
+    Description: If host type is set to "Dedicated" or "Dedicated Host", you need
+      to specify your imported BYOL AMI ID.
+    Type: String
+  DedicatedHostIDNode1:
+    Default: ''
+    Description: Dedicated host ID for node 1, used only if host type is set to "host".
+    Type: String
+  DedicatedHostIDNode2:
+    Default: ''
+    Description: Dedicated host ID for node 2, used only if host type is set to "host".
+    Type: String
+  DedicatedHostIDNode3:
+    Default: ''
+    Description: Dedicated host ID for the optional node 3, used only if host type is
+      set to "host".
+    Type: String
+  DomainAdminPassword:
+    AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
+    Description: Password for the domain admin user. Must be at least 8 characters,
+      containing letters, numbers, and symbols.
+    MaxLength: '32'
+    MinLength: '8'
+    NoEcho: 'true'
+    Type: String
+  DomainAdminUser:
+    AllowedPattern: '[a-zA-Z0-9]*'
+    Default: Admin
+    Description: User name for the account that will be used as domain administrator. This is separate from the default "Administrator" account.
+    MaxLength: '25'
+    MinLength: '5'
+    Type: String
+  DomainDNSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
+    Default: example.com
+    Description: Fully qualified domain name (FQDN).
+    MaxLength: '255'
+    MinLength: '2'
+    Type: String
+  DomainMemberSGID:
+    Description: ID of the domain member security group (e.g., sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: EXAMPLE
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier
+      versions of Windows.
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  HostType:
+    AllowedValues:
+      - Shared
+      - Dedicated
+      - Dedicated Host
+    Default: Shared
+    Description: 'Host type. For dedicated types, you must already have suitable
+      dedicated hosts in your account.'
+    Type: String
+  KeyPairName:
+    Description: Public/private key pair, which allows you to securely connect to your instance
+      after it launches.
+    Type: AWS::EC2::KeyPair::KeyName
+  PrivateSubnet1ID:
+    Description: ID of the private subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd).
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet2ID:
+    Description: ID of the private subnet 2 in Availability Zone 2 (e.g., subnet-a0246dcd).
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet3ID:
+    Default: ''
+    Description: (Optional) ID of the private subnet 3 in Availability Zone
+      3 (e.g., subnet-a0246dcd).
+    Type: String
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: This string can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Description: S3 bucket name for the Quick Start assets. This name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: quickstart-microsoft-sql/
+    Description: S3 key prefix for the Quick Start assets. This prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+  SQLLicenseProvided:
+    AllowedValues:
+      - 'yes'
+      - 'no'
+    Default: 'yes'
+    Description: License SQL Server from AWS Marketplace.
+    Type: String
+  SQLServerVersion:
+    AllowedValues:
+      - '2017'
+      - '2016'
+    Default: '2017'
+    Description: Version of SQL Server to install on failover cluster nodes.
+    Type: String
+  SQLServiceAccount:
+    AllowedPattern: '[a-zA-Z0-9]*'
+    Default: sqlsa
+    Description: User name for the SQL Server service account. This account is a domain
+      user.
+    MaxLength: '25'
+    MinLength: '5'
+    Type: String
+  SQLServiceAccountPassword:
+    AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
+    Description: Password for the SQL Server service account. Must be at least 8 characters,
+      containing letters, numbers and symbols.
+    MaxLength: '32'
+    MinLength: '8'
+    NoEcho: 'true'
+    Type: String
+  ThirdAZ:
+    AllowedValues:
+      - 'no'
+      - witness
+      - full
+    Default: 'no'
+    Description: Choose full or witness to enable a deployment with three Availability Zones. The third zone can be used for
+      the witness, or it can be a full SQL cluster node.
+    Type: String
+  Volume1Iops:
+    Default: '1000'
+    Description: IOPS for the SQL Server data drive (only used when volume type is io1).
+    MaxValue: '20000'
+    MinValue: '100'
+    Type: Number
+  Volume1Size:
+    Default: '500'
+    Description: Volume size for the SQL Server data drive, in GiB.
+    MaxValue: '16000'
+    MinValue: '100'
+    Type: Number
+  Volume1Type:
+    AllowedValues:
+      - gp2
+      - io1
+    Default: gp2
+    Description: Volume type for the SQL Server data drive.
+    Type: String
+  Volume2Iops:
+    Default: '1000'
+    Description: IOPS for the SQL Server logs drive (only used when volume type is io1).
+    MaxValue: '20000'
+    MinValue: '100'
+    Type: Number
+  Volume2Size:
+    Default: '500'
+    Description: Volume size for the SQL Server logs drive, in GiB.
+    MaxValue: '16000'
+    MinValue: '100'
+    Type: Number
+  Volume2Type:
+    AllowedValues:
+      - gp2
+      - io1
+    Default: gp2
+    Description: Volume type for the SQL Server logs drive.
+    Type: String
+  Volume3Iops:
+    Default: '1000'
+    Description: IOPS for the SQL Server TempDB drive (only used when volume type is io1).
+    MaxValue: '20000'
+    MinValue: '100'
+    Type: Number
+  Volume3Size:
+    Default: '500'
+    Description: Volume size for the SQL Server TempDB drive, in GiB.
+    MaxValue: '16000'
+    MinValue: '100'
+    Type: Number
+  Volume3Type:
+    AllowedValues:
+      - gp2
+      - io1
+    Default: gp2
+    Description: Volume type for the SQL Server TempDB drive.
+    Type: String
+  VPCID:
+    Description: ID of the VPC (e.g., vpc-0343606e).
+    Type: AWS::EC2::VPC::Id
+  WSFCFileServerInstanceType:
+    AllowedValues:
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t3.small
+      - t3.medium
+      - t3.large
+      - m4.large
+      - m5.large
+    Default: m5.large
+    Description: Amazon EC2 instance type for a file server used to share install media,
+      witness, and replication folders.
+    Type: String
+  WSFCFileServerNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: WSFCFileServer
+    Description: NetBIOS name of the WSFC file server (up to 15 characters).
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  WSFCFileServerPrivateIP:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.0.200
+    Description: Primary private IP for the file server located in Availability Zone
+      1.
+    Type: String
+  WSFCNode1InstanceType:
+    AllowedValues:
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.12xlarge
+    ConstraintDescription: Only Amazon EBS-optimized instance types are allowed.
+    Default: r5.2xlarge
+    Description: Amazon EC2 instance type for the first WSFC node.
+    Type: String
+  WSFCNode1NetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: WSFCNode1
+    Description: NetBIOS name of the first WSFC node (up to 15 characters).
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  WSFCNode1PrivateIP1:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.0.100
+    Description: Primary private IP for the first WSFC node located in Availability
+      Zone 1.
+    Type: String
+  WSFCNode1PrivateIP2:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.0.101
+    Description: Secondary private IP for WSFC cluster on first WSFC node.
+    Type: String
+  WSFCNode1PrivateIP3:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.0.102
+    Description: Third private IP for availability group listener on first WSFC node.
+    Type: String
+  WSFCNode2InstanceType:
+    AllowedValues:
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.12xlarge
+    ConstraintDescription: Only Amazon EBS-optimized instance types are allowed.
+    Default: r5.2xlarge
+    Description: Amazon EC2 instance type for the second WSFC node.
+    Type: String
+  WSFCNode2NetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: WSFCNode2
+    Description: NetBIOS name of the second WSFC node (up to 15 characters).
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  WSFCNode2PrivateIP1:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.32.100
+    Description: Primary private IP for the second WSFC node located in Availability
+      Zone 2.
+    Type: String
+  WSFCNode2PrivateIP2:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.32.101
+    Description: Secondary private IP for WSFC cluster on second WSFC node.
+    Type: String
+  WSFCNode2PrivateIP3:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.32.102
+    Description: Third private IP for availability group listener on second WSFC node.
+    Type: String
+  WSFCNode3InstanceType:
+    AllowedValues:
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.12xlarge
+    ConstraintDescription: Only Amazon EBS-optimized instance types are allowed.
+    Default: r5.2xlarge
+    Description: Amazon EC2 instance type for the third WSFC node.
+    Type: String
+  WSFCNode3NetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: WSFCNode3
+    Description: NetBIOS name of the third WSFC node (up to 15 characters).
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  WSFCNode3PrivateIP1:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.64.100
+    Description: Primary private IP for the optional third WSFC node located in Availability
+      Zone 3.
+    Type: String
+  WSFCNode3PrivateIP2:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.64.101
+    Description: Secondary private IP for WSFC cluster on optional third WSFC node.
+    Type: String
+  WSFCNode3PrivateIP3:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.64.102
+    Description: Third private IP for availability group listener on optional third
+      WSFC node.
+    Type: String
+  WS2019FULLBASE:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base'
+  WS2019FULLSQL2016SP2ENT:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2016_SP2_Enterprise'
+  WS2019FULLSQL2017ENT:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-SQL_2017_Enterprise'
+Conditions:
+  UseAWSDirectoryServiceEE: !Equals
+    - !Ref 'ADScenarioType'
+    - AWS Directory Service for Microsoft AD (Enterprise Edition)
+  IsThreeAz: !Not
+    - !Equals
+      - !Ref 'ThirdAZ'
+      - 'no'
+  ThirdAzIsWitness: !Equals
+    - !Ref 'ThirdAZ'
+    - witness
+  ThirdAzIsFullNode: !Equals
+    - !Ref 'ThirdAZ'
+    - full
+  IsTwoNode: !Not
+    - !Equals
+      - !Ref 'ThirdAZ'
+      - full
+  Vol1IsIo1: !Equals
+    - !Ref 'Volume1Type'
+    - io1
+  Vol2IsIo1: !Equals
+    - !Ref 'Volume2Type'
+    - io1
+  Vol3IsIo1: !Equals
+    - !Ref 'Volume2Type'
+    - io1
+  HostTypeIsDefault: !Equals
+    - !Ref 'HostType'
+    - Shared
+  HostTypeIsDediHost: !Equals
+    - !Ref 'HostType'
+    - Dedicated Host
+  ByolAmi: !Not
+    - !Equals
+      - !Ref 'HostType'
+      - Shared
+  SQLBakedInAMI: !Equals
+    - !Ref 'SQLLicenseProvided'
+    - 'yes'
+  SQLVersion2017: !Equals
+    - !Ref 'SQLServerVersion'
+    - '2017'
+  GovCloudCondition: !Equals
+    - !Ref 'AWS::Region'
+    - us-gov-west-1
+Rules:
+  SubnetsInVPC:
+    Assertions:
+      - Assert: !EachMemberIn
+          - !ValueOfAll
+            - AWS::EC2::Subnet::Id
+            - VpcId
+          - !RefAll 'AWS::EC2::VPC::Id'
+        AssertDescription: All subnets must in the VPC
+Resources:
+  QuickStartLogs:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Sub '/aws/Quick_Start/${AWS::StackName}'
+      RetentionInDays: 30
+  ADAdminSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'AWSQuickStart/${AWS::StackName}/ADAdminSecrets'
+      Description: MS SQL Credentials for Quick Start
+      SecretString: !Sub '{ "username" : "${DomainAdminUser}", "password" : "${DomainAdminPassword}" }'
+  SQLSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'AWSQuickStart/${AWS::StackName}/SQLSecrets'
+      Description: MS SQL Credentials for Quick Start
+      SecretString: !Sub '{ "username" : "${SQLServiceAccount}", "password" : "${SQLServiceAccountPassword}" }'
+  WSFCRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*'
+                Effect: Allow
+          PolicyName: aws-quick-start-s3-policy
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: 
+                  - !Ref 'SQLSecrets'
+                  - !Ref 'ADAdminSecrets'
+              - Effect: Allow
+                Action:
+                  - ssm:StartAutomationExecution
+                Resource: '*'
+          PolicyName: QS-MSSQL-SSM
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${AWSQuickstartMSSQLRole}'
+          PolicyName: QS-MSSQL-SSM-PassRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforSSM'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ReadOnlyAccess'
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - ssm.amazonaws.com
+            Effect: Allow
+        Version: '2012-10-17'
+  WSFCProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref 'WSFCRole'
+      Path: /
+  WSFCFileServer:
+    Type: AWS::EC2::Instance
+    Condition: IsTwoNode
+    Properties:
+      ImageId: !Ref WS2019FULLBASE
+      IamInstanceProfile: !Ref 'WSFCProfile'
+      InstanceType: !Ref 'WSFCFileServerInstanceType'
+      NetworkInterfaces:
+        - DeleteOnTermination: 'true'
+          DeviceIndex: 0
+          SubnetId: !If
+            - ThirdAzIsWitness
+            - !Ref 'PrivateSubnet3ID'
+            - !Ref 'PrivateSubnet1ID'
+          PrivateIpAddresses:
+            - Primary: 'true'
+              PrivateIpAddress: !Ref 'WSFCFileServerPrivateIP'
+          GroupSet:
+            - !Ref 'DomainMemberSGID'
+            - !Ref 'WSFCSecurityGroup'
+            - !Ref 'WSFCClientSecurityGroup'
+      Tags:
+        - Key: Name
+          Value: !Ref 'WSFCFileServerNetBIOSName'
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '100'
+            VolumeType: gp2
+      KeyName: !Ref 'KeyPairName'
+  WSFCNode1:
+    Type: AWS::EC2::Instance
+    Properties:
+      Affinity: !If
+        - HostTypeIsDediHost
+        - host
+        - !If
+          - HostTypeIsDefault
+          - !Ref 'AWS::NoValue'
+          - default
+      HostId: !If
+        - HostTypeIsDediHost
+        - !Ref 'DedicatedHostIDNode1'
+        - !Ref 'AWS::NoValue'
+      Tenancy: !If
+        - HostTypeIsDediHost
+        - host
+        - !If
+          - HostTypeIsDefault
+          - default
+          - dedicated
+      ImageId: !If
+        - ByolAmi
+        - !Ref 'DedicatedHostAMI'
+        - !If
+            - SQLBakedInAMI
+            - !If
+                - 'SQLVersion2017'
+                - !Ref WS2019FULLSQL2017ENT
+                - !Ref WS2019FULLSQL2016SP2ENT
+            - !Ref WS2019FULLBASE
+      IamInstanceProfile: !Ref 'WSFCProfile'
+      InstanceType: !Ref 'WSFCNode1InstanceType'
+      EbsOptimized: 'true'
+      NetworkInterfaces:
+        - DeleteOnTermination: 'true'
+          DeviceIndex: 0
+          SubnetId: !Ref 'PrivateSubnet1ID'
+          PrivateIpAddresses:
+            - Primary: 'true'
+              PrivateIpAddress: !Ref 'WSFCNode1PrivateIP1'
+            - Primary: 'false'
+              PrivateIpAddress: !Ref 'WSFCNode1PrivateIP2'
+            - Primary: 'false'
+              PrivateIpAddress: !Ref 'WSFCNode1PrivateIP3'
+          GroupSet:
+            - !Ref 'DomainMemberSGID'
+            - !Ref 'WSFCSecurityGroup'
+            - !Ref 'WSFCClientSecurityGroup'
+      Tags:
+        - Key: Name
+          Value: !Ref 'WSFCNode1NetBIOSName'
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '100'
+            VolumeType: gp2
+        - DeviceName: /dev/xvdca
+          VirtualName: ephemeral0
+      KeyName: !Ref 'KeyPairName'
+  WSFCNode3:
+    Type: AWS::EC2::Instance
+    Condition: ThirdAzIsFullNode
+    Properties:
+      Affinity: !If
+        - HostTypeIsDediHost
+        - host
+        - !If
+          - HostTypeIsDefault
+          - !Ref 'AWS::NoValue'
+          - default
+      HostId: !If
+        - HostTypeIsDediHost
+        - !Ref 'DedicatedHostIDNode3'
+        - !Ref 'AWS::NoValue'
+      Tenancy: !If
+        - HostTypeIsDediHost
+        - host
+        - !If
+          - HostTypeIsDefault
+          - default
+          - dedicated
+      ImageId: !If
+        - ByolAmi
+        - !Ref 'DedicatedHostAMI'
+        - !If
+            - SQLBakedInAMI
+            - !If
+                - 'SQLVersion2017'
+                - !Ref WS2019FULLSQL2017ENT
+                - !Ref WS2019FULLSQL2016SP2ENT
+            - !Ref WS2019FULLBASE
+      IamInstanceProfile: !Ref 'WSFCProfile'
+      InstanceType: !Ref 'WSFCNode3InstanceType'
+      EbsOptimized: 'true'
+      NetworkInterfaces:
+        - DeleteOnTermination: 'true'
+          DeviceIndex: 0
+          SubnetId: !Ref 'PrivateSubnet3ID'
+          PrivateIpAddresses:
+            - Primary: 'true'
+              PrivateIpAddress: !Ref 'WSFCNode3PrivateIP1'
+            - Primary: 'false'
+              PrivateIpAddress: !Ref 'WSFCNode3PrivateIP2'
+            - Primary: 'false'
+              PrivateIpAddress: !Ref 'WSFCNode3PrivateIP3'
+          GroupSet:
+            - !Ref 'DomainMemberSGID'
+            - !Ref 'WSFCSecurityGroup'
+            - !Ref 'WSFCClientSecurityGroup'
+      Tags:
+        - Key: Name
+          Value: !Ref 'WSFCNode3NetBIOSName'
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '100'
+            VolumeType: gp2
+        - DeviceName: /dev/xvdca
+          VirtualName: ephemeral0
+      KeyName: !Ref 'KeyPairName'
+  WSFCNode2:
+    Type: AWS::EC2::Instance
+    Properties:
+      Affinity: !If
+        - HostTypeIsDediHost
+        - host
+        - !If
+          - HostTypeIsDefault
+          - !Ref 'AWS::NoValue'
+          - default
+      HostId: !If
+        - HostTypeIsDediHost
+        - !Ref 'DedicatedHostIDNode2'
+        - !Ref 'AWS::NoValue'
+      Tenancy: !If
+        - HostTypeIsDediHost
+        - host
+        - !If
+          - HostTypeIsDefault
+          - default
+          - dedicated
+      ImageId: !If
+        - ByolAmi
+        - !Ref 'DedicatedHostAMI'
+        - !If
+            - SQLBakedInAMI
+            - !If
+                - 'SQLVersion2017'
+                - !Ref WS2019FULLSQL2017ENT
+                - !Ref WS2019FULLSQL2016SP2ENT
+            - !Ref WS2019FULLBASE
+      IamInstanceProfile: !Ref 'WSFCProfile'
+      InstanceType: !Ref 'WSFCNode2InstanceType'
+      EbsOptimized: 'true'
+      NetworkInterfaces:
+        - DeleteOnTermination: 'true'
+          DeviceIndex: 0
+          SubnetId: !Ref 'PrivateSubnet2ID'
+          PrivateIpAddresses:
+            - Primary: 'true'
+              PrivateIpAddress: !Ref 'WSFCNode2PrivateIP1'
+            - Primary: 'false'
+              PrivateIpAddress: !Ref 'WSFCNode2PrivateIP2'
+            - Primary: 'false'
+              PrivateIpAddress: !Ref 'WSFCNode2PrivateIP3'
+          GroupSet:
+            - !Ref 'DomainMemberSGID'
+            - !Ref 'WSFCSecurityGroup'
+            - !Ref 'WSFCClientSecurityGroup'
+      Tags:
+        - Key: Name
+          Value: !Ref 'WSFCNode2NetBIOSName'
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '100'
+            VolumeType: gp2
+        - DeviceName: /dev/xvdca
+          VirtualName: ephemeral0
+      KeyName: !Ref 'KeyPairName'
+  WSFCNode1Volume1:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref 'Volume1Size'
+      VolumeType: !Ref 'Volume1Type'
+      AvailabilityZone: !GetAtt 'WSFCNode1.AvailabilityZone'
+      Iops: !If
+        - Vol1IsIo1
+        - !Ref 'Volume1Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode1Volume2:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref 'Volume2Size'
+      VolumeType: !Ref 'Volume2Type'
+      AvailabilityZone: !GetAtt 'WSFCNode1.AvailabilityZone'
+      Iops: !If
+        - Vol2IsIo1
+        - !Ref 'Volume2Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode1Volume3:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref 'Volume3Size'
+      VolumeType: !Ref 'Volume3Type'
+      AvailabilityZone: !GetAtt 'WSFCNode1.AvailabilityZone'
+      Iops: !If
+        - Vol3IsIo1
+        - !Ref 'Volume3Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode2Volume1:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref 'Volume1Size'
+      VolumeType: !Ref 'Volume1Type'
+      AvailabilityZone: !GetAtt 'WSFCNode2.AvailabilityZone'
+      Iops: !If
+        - Vol1IsIo1
+        - !Ref 'Volume1Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode2Volume2:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref 'Volume2Size'
+      VolumeType: !Ref 'Volume2Type'
+      AvailabilityZone: !GetAtt 'WSFCNode2.AvailabilityZone'
+      Iops: !If
+        - Vol2IsIo1
+        - !Ref 'Volume2Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode2Volume3:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !Ref 'Volume3Size'
+      VolumeType: !Ref 'Volume3Type'
+      AvailabilityZone: !GetAtt 'WSFCNode2.AvailabilityZone'
+      Iops: !If
+        - Vol3IsIo1
+        - !Ref 'Volume3Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode3Volume1:
+    Type: AWS::EC2::Volume
+    Condition: ThirdAzIsFullNode
+    Properties:
+      Size: !Ref 'Volume1Size'
+      VolumeType: !Ref 'Volume1Type'
+      AvailabilityZone: !GetAtt 'WSFCNode3.AvailabilityZone'
+      Iops: !If
+        - Vol1IsIo1
+        - !Ref 'Volume1Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode3Volume2:
+    Type: AWS::EC2::Volume
+    Condition: ThirdAzIsFullNode
+    Properties:
+      Size: !Ref 'Volume2Size'
+      VolumeType: !Ref 'Volume2Type'
+      AvailabilityZone: !GetAtt 'WSFCNode3.AvailabilityZone'
+      Iops: !If
+        - Vol2IsIo1
+        - !Ref 'Volume2Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode3Volume3:
+    Type: AWS::EC2::Volume
+    Condition: ThirdAzIsFullNode
+    Properties:
+      Size: !Ref 'Volume3Size'
+      VolumeType: !Ref 'Volume3Type'
+      AvailabilityZone: !GetAtt 'WSFCNode3.AvailabilityZone'
+      Iops: !If
+        - Vol3IsIo1
+        - !Ref 'Volume3Iops'
+        - !Ref 'AWS::NoValue'
+  WSFCNode1Volume1Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/xvdb
+      InstanceId: !Ref 'WSFCNode1'
+      VolumeId: !Ref 'WSFCNode1Volume1'
+  WSFCNode1Volume2Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/xvdc
+      InstanceId: !Ref 'WSFCNode1'
+      VolumeId: !Ref 'WSFCNode1Volume2'
+  WSFCNode1Volume3Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/xvdd
+      InstanceId: !Ref 'WSFCNode1'
+      VolumeId: !Ref 'WSFCNode1Volume3'
+  WSFCNode2Volume1Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/xvdb
+      InstanceId: !Ref 'WSFCNode2'
+      VolumeId: !Ref 'WSFCNode2Volume1'
+  WSFCNode2Volume2Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/xvdc
+      InstanceId: !Ref 'WSFCNode2'
+      VolumeId: !Ref 'WSFCNode2Volume2'
+  WSFCNode2Volume3Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/xvdd
+      InstanceId: !Ref 'WSFCNode2'
+      VolumeId: !Ref 'WSFCNode2Volume3'
+  WSFCNode3Volume1Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Condition: ThirdAzIsFullNode
+    Properties:
+      Device: /dev/xvdb
+      InstanceId: !Ref 'WSFCNode3'
+      VolumeId: !Ref 'WSFCNode3Volume1'
+  WSFCNode3Volume2Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Condition: ThirdAzIsFullNode
+    Properties:
+      Device: /dev/xvdc
+      InstanceId: !Ref 'WSFCNode3'
+      VolumeId: !Ref 'WSFCNode3Volume2'
+  WSFCNode3Volume3Attachment:
+    Type: AWS::EC2::VolumeAttachment
+    Condition: ThirdAzIsFullNode
+    Properties:
+      Device: /dev/xvdd
+      InstanceId: !Ref 'WSFCNode3'
+      VolumeId: !Ref 'WSFCNode3Volume3'
+  WSFCSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable the WSFC and SQL AlwaysOn Availability Group communications
+      VpcId: !Ref 'VPCID'
+  WSFCSecurityGroupIngressIcmp:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: icmp
+      FromPort: '-1'
+      ToPort: '-1'
+  WSFCSecurityGroupIngressTcp135:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '135'
+      ToPort: '135'
+  WSFCSecurityGroupIngressTcp137:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '137'
+      ToPort: '137'
+  WSFCSecurityGroupIngressTcp445:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '445'
+      ToPort: '445'
+  WSFCSecurityGroupIngressTcp1433:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '1433'
+      ToPort: '1434'
+  WSFCSecurityGroupIngressTcp3343:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '3343'
+      ToPort: '3343'
+  WSFCSecurityGroupIngressTcp5022:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '5022'
+      ToPort: '5022'
+  WSFCSecurityGroupIngressTcp5985:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '5985'
+      ToPort: '5985'
+  WSFCSecurityGroupIngressUdp137:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: udp
+      FromPort: '137'
+      ToPort: '137'
+  WSFCSecurityGroupIngressUdp3343:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: udp
+      FromPort: '3343'
+      ToPort: '3343'
+  WSFCSecurityGroupIngressUdp1434:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: udp
+      FromPort: '1434'
+      ToPort: '1434'
+  WSFCSecurityGroupIngressUdpHighPorts:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: udp
+      FromPort: '49152'
+      ToPort: '65535'
+  WSFCSecurityGroupIngressTcpHighPorts:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'WSFCSecurityGroup'
+      SourceSecurityGroupId: !Ref 'WSFCSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '49152'
+      ToPort: '65535'
+  SQLServerAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref 'VPCID'
+      GroupDescription: Allows access to SQL Servers
+  WSFCClientSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SQL Client access ports
+      VpcId: !Ref 'VPCID'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '1433'
+          ToPort: '1433'
+          SourceSecurityGroupId: !Ref 'SQLServerAccessSecurityGroup'
+Outputs:
+  WSFCNode1NetBIOSName:
+    Value: !Ref 'WSFCNode1NetBIOSName'
+    Description: NetBIOS name of the 1st WSFC Node
+  WSFCNode2NetBIOSName:
+    Value: !Ref 'WSFCNode2NetBIOSName'
+    Description: NetBIOS name of the 2nd WSFC Node
+  WSFCNode3NetBIOSName:
+    Condition: ThirdAzIsFullNode
+    Value: !Ref 'WSFCNode3NetBIOSName'
+    Description: NetBIOS name of the 3rd WSFC Node
+  SQLServerAccessSecurityGroupID:
+    Value: !Ref 'SQLServerAccessSecurityGroup'
+    Description: Add instances that require access to SQL to this Security Group

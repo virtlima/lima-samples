@@ -19,7 +19,7 @@ $ConfigurationData = @{
 Configuration DomainJoin {
 
     $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
-    $Credentials = New-Object PSCredential('/quickstart/secrets/SIOS/DKCE/DomainAdminUser', $ss)
+    $Credentials = New-Object PSCredential('{ssm:AdminSecretARN}', $ss)
 
     Import-Module -Name PSDesiredStateConfiguration
     Import-Module -Name ComputerManagementDsc
@@ -31,10 +31,10 @@ Configuration DomainJoin {
 
         Computer JoinDomain {
             Name = '{tag:ComputerName}'
-            DomainName = '{ssm:/quickstart/SIOS/DKCE/DomainName}'
+            DomainName = '{ssm:DomainName}'
             Credential = $Credentials
         }
     }
 }
 
-DomainJoin -OutputPath 'C:\AWSQuickstart\DomainJoin' -ConfigurationData $ConfigurationData
+DomainJoin -OutputPath 'C:\MofFiles\DomainJoin' -ConfigurationData $ConfigurationData
