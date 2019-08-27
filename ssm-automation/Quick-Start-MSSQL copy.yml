@@ -1,79 +1,182 @@
 ---
 schemaVersion: "0.3"
 description: Deploy MSSQL with SSM Automation
-# Role that is utilized to perform the steps within the Automation Document.
 assumeRole: "{{AutomationAssumeRole}}"
-# Gathering parameters needed to configure DCs in the Quick Start
 parameters:
   SQLServerVersion:
+    allowedValues:
+      - '2017'
+      - '2016'
     default: "2017"
     description: "Version of SQL Server to install on Failover Cluster Nodes"
     type: "String"
   SQLLicenseProvided:
+    allowedValues:
+      - 'yes'
+      - 'no'
     default: "yes"
     description: "License SQL Server from AWS Marketplace"
     type: "String"
+  DomainMemberSGID:
+    description: ID of the domain member security group (e.g., sg-7f16e910).
+    type: "String"
+  KeyPairName:
+    description: Public/private key pair, which allows you to securely connect to your instance
+      after it launches.
+    type: "String"
+  PrivateSubnet1ID:
+    description: ID of the private subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd).
+    type: "String"
+  PrivateSubnet2ID:
+    description: ID of the private subnet 2 in Availability Zone 2 (e.g., subnet-a0246dcd).
+    type: "String"
+  PrivateSubnet3ID:
+    default: ''
+    description: (Optional) ID of the private subnet 3 in Availability Zone
+      3 (e.g., subnet-a0246dcd).
+    type: "String"
   WSFCNode1NetBIOSName:
+    allowedPattern: '[a-zA-Z0-9\-]+'
     default: "WSFCNode1"
     description: "NetBIOS name of the first WSFC Node (up to 15 characters)"
     type: "String"
+  WSFCNode1PrivateIP1:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    default: "10.0.0.100"
+    description: "Secondary private IP for WSFC cluster on first WSFC Node"
+    type: "String"
   WSFCNode1PrivateIP2:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
     default: "10.0.0.101"
     description: "Secondary private IP for WSFC cluster on first WSFC Node"
     type: "String"
   WSFCNode1PrivateIP3:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
     default: "10.0.0.102"
     description: "Third private IP for Availability Group Listener on first WSFC Node"
     type: "String"
   WSFCNode2NetBIOSName:
+    allowedPattern: '[a-zA-Z0-9\-]+'
     default: "WSFCNode2"
     description: "NetBIOS name of the second WSFC Node (up to 15 characters)"
     type: "String"
+  WSFCNode2PrivateIP1:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    default: "10.0.32.100"
+    description: "Secondary private IP for WSFC cluster on first WSFC Node"
+    type: "String"
   WSFCNode2PrivateIP2:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
     default: "10.0.32.101"
     description: "Secondary private IP for WSFC cluster on first WSFC Node"
     type: "String"
   WSFCNode2PrivateIP3:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
     default: "10.0.32.102"
     description: "Third private IP for Availability Group Listener on first WSFC Node"
     type: "String"
   WSFCNode3NetBIOSName:
+    allowedPattern: '[a-zA-Z0-9\-]+'
     default: "WSFCNode3"
     description: "NetBIOS name of the third WSFC Node (up to 15 characters)"
     type: "String"
+  WSFCNode3PrivateIP1:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    default: "10.0.64.100"
+    description: "Secondary private IP for WSFC cluster on first WSFC Node"
+    type: "String"
   WSFCNode3PrivateIP2:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
     default: "10.0.64.101"
     description: "Fixed private IP for the first Active Directory server located in Availability Zone 1"
     type: "String"
   WSFCNode3PrivateIP3:
+    allowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
     default: "10.0.64.102"
     description: "Third private IP for Availability Group Listener on first WSFC Node"
     type: "String"
   WSFCFileServerNetBIOSName:
+    allowedPattern: '[a-zA-Z0-9\-]+'
     default: "WSFCFileServer"
     description: "NetBIOS name of the WSFCFileServer (up to 15 characters)"
     type: "String"
+  Volume1Iops:
+    default: '1000'
+    description: IOPS for the SQL Server data drive (only used when volume type is io1).
+    type: String
+  Volume1Size:
+    default: '500'
+    description: Volume size for the SQL Server data drive, in GiB.
+    type: String
+  Volume1Type:
+    allowedValues:
+      - gp2
+      - io1
+    default: gp2
+    description: Volume type for the SQL Server data drive, allowed values are gp2 or io1
+    type: String
+  Volume2Iops:
+    default: '1000'
+    description: IOPS for the SQL Server logs drive (only used when volume type is io1).
+    type: string
+  Volume2Size:
+    default: '500'
+    description: Volume size for the SQL Server logs drive, in GiB.
+    type: string
+  Volume2Type:
+    allowedValues:
+      - gp2
+      - io1
+    default: gp2
+    description: Volume type for the SQL Server logs drive, allowed values are gp2 or io1
+    type: String
+  Volume3Iops:
+    default: '1000'
+    description: IOPS for the SQL Server TempDB drive (only used when volume type is io1).
+    type: String
+  Volume3Size:
+    default: '500'
+    description: Volume size for the SQL Server TempDB drive, in GiB.
+    type: String
+  Volume3Type:
+    default: gp2
+    description: Volume type for the SQL Server TempDB drive, allowed values are gp2 or io1.
+    type: "String"
+  VPCID:
+    description: ID of the VPC (e.g., vpc-0343606e).
+    type: "String"
   ClusterName:
+    allowedPattern: '[a-zA-Z0-9\-]+'
     default: "WSFCCluster1"
     description: "NetBIOS name of the Cluster (up to 15 characters)"
     type: "String"
   AvailabiltyGroupName:
+    allowedPattern: '[a-zA-Z0-9\-]+'
     default: "SQLAG1"
     description: "NetBIOS name of the Availablity Group (up to 15 characters)"
     type: "String"
   ThirdAZ: 
+    allowedValues:
+      - 'no'
+      - witness
+      - full
     default: "no"
     description: "Enable a 3 AZ deployment, the 3rd AZ can either be used just for the witness, or can be a full SQL cluster node."
     type: "String"
-  DomainDNSName: 
+  DomainDNSName:
+    allowedPattern: '[a-zA-Z0-9\-]+\..+' 
     default: "example.com"
     description: "Fully qualified domain name (FQDN) of the forest root domain e.g. example.com"
     type: "String"
-  DomainNetBIOSName: 
+  DomainNetBIOSName:
+    allowedPattern: '[a-zA-Z0-9\-]+' 
     default: "example"
     description: "NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE"
     type: "String"
   ManagedAD:
+    allowedValues:
+      - 'Yes'
+      - 'No'
     default: "No"
     description: "Active Directory being Managed by AWS"
     type: "String"
@@ -93,22 +196,185 @@ parameters:
     type: "String"
   StackName:
     default: ""
-    description: "Stack Name Input for cfn resource signal"
+    description: "Stack Name For SQL Node Stack"
     type: "String"
   AutomationAssumeRole:
     default: ""
     description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
     type: "String"
 mainSteps:
+- name: createStack
+  action: aws:createStack
+  onFailure: DELETE
+  inputs:
+    StackName: "{{StackName}}"
+    Capabilities: [ "CAPABILITY_IAM" ]
+    TemplateURL: https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}templates/sql-ssm.yaml
+    Parameters: [
+      { 
+        "ParameterKey": "DomainMemberSGID",
+        "ParameterValue": "{{DomainMemberSGID}}"
+      },
+      {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": "{{KeyPairName}}"
+      },
+      {
+        "ParameterKey": "VPCID",
+        "ParameterValue": "{{VPCID}}"
+      },
+      {
+        "ParameterKey": "PrivateSubnet1ID",
+        "ParameterValue": "{{PrivateSubnet1ID}}"
+      },
+      {
+        "ParameterKey": "PrivateSubnet2ID",
+        "ParameterValue": "{{PrivateSubnet2ID}}"
+      },
+      {
+        "ParameterKey": "PrivateSubnet3ID",
+        "ParameterValue": "{{PrivateSubnet3ID}}"
+      },
+      {
+        "ParameterKey": "QSS3BucketName",
+        "ParameterValue": "{{QSS3BucketName}}"
+      },
+      {
+        "ParameterKey": "QSS3KeyPrefix",
+        "ParameterValue": "{{QSS3KeyPrefix}}"
+      },
+      {
+        "ParameterKey": "SQLLicenseProvided",
+        "ParameterValue": "{{SQLLicenseProvided}}"
+      },
+      {
+        "ParameterKey": "SQLServerVersion",
+        "ParameterValue": "{{SQLServerVersion}}"
+      },
+      {
+        "ParameterKey": "ThirdAZ",
+        "ParameterValue": "{{ThirdAZ}}"
+      },
+      {
+        "ParameterKey": "Volume1Iops",
+        "ParameterValue": "{{Volume1Iops}}"
+      },
+      {
+        "ParameterKey": "Volume1Size",
+        "ParameterValue": "{{Volume1Size}}"
+      },
+      {
+        "ParameterKey": "Volume1Type",
+        "ParameterValue": "{{Volume1Type}}"
+      },
+      {
+        "ParameterKey": "Volume2Iops",
+        "ParameterValue": "{{Volume2Iops}}"
+      },
+      {
+        "ParameterKey": "Volume2Size",
+        "ParameterValue": "{{Volume2Size}}"
+      },
+      {
+        "ParameterKey": "Volume2Type",
+        "ParameterValue": "{{Volume2Type}}"
+      },
+      {
+        "ParameterKey": "Volume3Iops",
+        "ParameterValue": "{{Volume3Iops}}"
+      },
+      {
+        "ParameterKey": "Volume3Size",
+        "ParameterValue": "{{Volume3Size}}"
+      },
+      {
+        "ParameterKey": "Volume3Type",
+        "ParameterValue": "{{Volume3Type}}"
+      },
+      {
+        "ParameterKey": "WSFCFileServerNetBIOSName",
+        "ParameterValue": "{{WSFCFileServerNetBIOSName}}"
+      },
+      {
+        "ParameterKey": "WSFCFileServerInstanceType",
+        "ParameterValue": "{{WSFCFileServerInstanceType}}"
+      },
+      {
+        "ParameterKey": "WSFCFileServerPrivateIP",
+        "ParameterValue": "{{WSFCFileServerPrivateIP}}"
+      },
+      {
+        "ParameterKey": "WSFCNode1NetBIOSName",
+        "ParameterValue": "{{WSFCNode1NetBIOSName}}"
+      },
+      {
+        "ParameterKey": "WSFCNode1InstanceType",
+        "ParameterValue": "{{WSFCNode1InstanceType}}"
+      },
+      {
+        "ParameterKey": "WSFCNode1PrivateIP1",
+        "ParameterValue": "{{WSFCNode1PrivateIP1}}"
+      },
+      {
+        "ParameterKey": "WSFCNode1PrivateIP2",
+        "ParameterValue": "{{WSFCNode1PrivateIP2}}"
+      },
+      {
+        "ParameterKey": "WSFCNode1PrivateIP3",
+        "ParameterValue": "{{WSFCNode1PrivateIP3}}"
+      },
+      {
+        "ParameterKey": "WSFCNode2NetBIOSName",
+        "ParameterValue": "{{WSFCNode2NetBIOSName}}"
+      },
+      {
+        "ParameterKey": "WSFCNode2InstanceType",
+        "ParameterValue": "{{WSFCNode2InstanceType}}"
+      },
+      {
+        "ParameterKey": "WSFCNode2PrivateIP1",
+        "ParameterValue": "{{WSFCNode2PrivateIP1}}"
+      },
+      {
+        "ParameterKey": "WSFCNode2PrivateIP2",
+        "ParameterValue": "{{WSFCNode2PrivateIP2}}"
+      },
+      {
+        "ParameterKey": "WSFCNode2PrivateIP3",
+        "ParameterValue": "{{WSFCNode2PrivateIP3}}"
+      },
+      {
+        "ParameterKey": "WSFCNode3NetBIOSName",
+        "ParameterValue": "{{WSFCNode3NetBIOSName}}"
+      },
+      {
+        "ParameterKey": "WSFCNode2InstanceType",
+        "ParameterValue": "{{WSFCNode2InstanceType}}"
+      },
+      {
+        "ParameterKey": "WSFCNode3PrivateIP1",
+        "ParameterValue": "{{WSFCNode3PrivateIP1}}"
+      },
+      {
+        "ParameterKey": "WSFCNode3PrivateIP2",
+        "ParameterValue": "{{WSFCNode3PrivateIP2}}"
+      },
+      {
+        "ParameterKey": "WSFCNode3PrivateIP3",
+        "ParameterValue": "{{WSFCNode3PrivateIP3}}"
+      } 
+    ]   
 - name: "wsfcNode1InstanceId"
   action: aws:executeAwsApi
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     Service: ec2
     Api: DescribeInstances
     Filters:  
     - Name: "tag:Name"
       Values: ["{{WSFCNode1NetBIOSName}}"]
+    - Name: "tag:aws:cloudformation:stack-name"
+      Values: ["{{StackName}}"]
     - Name: "instance-state-name"
       Values: [ "running" ]
   outputs:
@@ -117,13 +383,15 @@ mainSteps:
     Type: "String"
 - name: "wsfcNode2InstanceId"
   action: aws:executeAwsApi
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     Service: ec2
     Api: DescribeInstances
     Filters:  
     - Name: "tag:Name"
       Values: ["{{WSFCNode2NetBIOSName}}"]
+    - Name: "tag:aws:cloudformation:stack-name"
+      Values: ["{{StackName}}"]
     - Name: "instance-state-name"
       Values: [ "running" ]
   outputs:
@@ -145,13 +413,15 @@ mainSteps:
       NextStep: wsfcNode3InstanceId
 - name: "wsfcNode3InstanceId"
   action: aws:executeAwsApi
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     Service: ec2
     Api: DescribeInstances
     Filters:  
     - Name: "tag:Name"
       Values: ["{{WSFCNode3NetBIOSName}}"]
+    - Name: "tag:aws:cloudformation:stack-name"
+      Values: ["{{StackName}}"]
     - Name: "instance-state-name"
       Values: [ "running" ]
   outputs:
@@ -160,7 +430,7 @@ mainSteps:
     Type: "String"
 - name: "wsfcnInstanceIds"
   action: aws:executeAwsApi
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     Service: ec2
     Api: DescribeInstances
@@ -175,7 +445,7 @@ mainSteps:
     Type: "StringList"
 - name: "wsfcnInitializeDisk"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure" 
+  onFailure: "step:deleteStack" 
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
@@ -188,56 +458,56 @@ mainSteps:
            C:\ProgramData\Amazon\EC2-Windows\Launch\Scripts\InitializeDisks.ps1
 - name: "wsfcnInstallDscModules"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
     - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/install-sql-modules.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/install-sql-modules.ps1"}'
       commandLine: "./install-sql-modules.ps1"
 - name: "wsfcnLCMConfig"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
     - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/LCM-Config.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/LCM-Config.ps1"}'
       commandLine: "./LCM-Config.ps1"
 - name: "wsfcnDomainJoin"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/DomainJoin.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/DomainJoin.ps1"}'
       commandLine: "./DomainJoin.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}}"
 - name: "wsfcnDomainConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -256,7 +526,7 @@ mainSteps:
            DscStatusCheck
 - name: "Node1nMof"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   #nextStep: 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
@@ -264,14 +534,14 @@ mainSteps:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/Node1Config.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/Node1Config.ps1"}'
       commandLine: "./Node1Config.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -WSFCNode1PrivateIP2 {{WSFCNode1PrivateIP2}} -ClusterName {{ClusterName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}}"
 - name: "Node1nConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   nextStep: "Node2Mof"
   inputs:
     DocumentName: AWS-RunPowerShellScript
@@ -279,7 +549,7 @@ mainSteps:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -298,13 +568,15 @@ mainSteps:
            DscStatusCheck
 - name: "wsfcFileServerInstanceId"
   action: aws:executeAwsApi
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     Service: ec2
     Api: DescribeInstances
     Filters:  
     - Name: "tag:Name"
       Values: ["{{WSFCFileServerNetBIOSName}}"]
+    - Name: "tag:aws:cloudformation:stack-name"
+      Values: ["{{StackName}}"]
     - Name: "instance-state-name"
       Values: [ "running" ]
   outputs:
@@ -313,7 +585,7 @@ mainSteps:
     Type: "String"
 - name: "wsfcwInstanceIds"
   action: aws:executeAwsApi
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     Service: ec2
     Api: DescribeInstances
@@ -328,70 +600,70 @@ mainSteps:
     Type: "StringList"
 - name: "wsfcnodewInitializeDisk"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcwInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |
            C:\ProgramData\Amazon\EC2-Windows\Launch\Scripts\InitializeDisks.ps1
 - name: "wsfcwInstallDscModules"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
     - "{{wsfcwInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/install-sql-modules.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/install-sql-modules.ps1"}'
       commandLine: "./install-sql-modules.ps1"
 - name: "wsfcwLCMConfig"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
     - "{{wsfcwInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/LCM-Config.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/LCM-Config.ps1"}'
       commandLine: "./LCM-Config.ps1"
 - name: "wsfcwDomainJoin"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcwInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/DomainJoin.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/DomainJoin.ps1"}'
       commandLine: "./DomainJoin.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}}"
 - name: "wsfcwDomainConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcwInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -410,21 +682,21 @@ mainSteps:
            DscStatusCheck
 - name: "wsfcFileServerConfig"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcFileServerInstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/WSFCFileShare.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/WSFCFileShare.ps1"}'
       commandLine: "./WSFCFileShare.ps1"
 - name: "Node1wMof"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   #nextStep: 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
@@ -432,21 +704,21 @@ mainSteps:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/Node1Config.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/Node1Config.ps1"}'
       commandLine: "./Node1Config.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -WSFCNode1PrivateIP2 {{WSFCNode1PrivateIP2}} -ClusterName {{ClusterName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}} -FileServerNetBIOSName {{WSFCFileServerNetBIOSName}}"
 - name: "Node1wConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -465,28 +737,28 @@ mainSteps:
            DscStatusCheck
 - name: "Node2Mof"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/AdditionalNodeConfig.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/AdditionalNodeConfig.ps1"}'
       commandLine: "./AdditionalNodeConfig.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -WSFCNodePrivateIP2 {{WSFCNode2PrivateIP2}} -ClusterName {{ClusterName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}}"
 - name: "Node2Config"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -518,28 +790,28 @@ mainSteps:
       NextStep: Node3Mof
 - name: "Node3Mof"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure" 
+  onFailure: "step:deleteStack" 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcNode3InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/AdditionalNodeConfig.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/AdditionalNodeConfig.ps1"}'
       commandLine: "./AdditionalNodeConfig.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -WSFCNodePrivateIP2 {{WSFCNode3PrivateIP2}} -ClusterName {{ClusterName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}}"
 - name: "Node3Config"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcNode3InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -581,7 +853,7 @@ mainSteps:
       NextStep: 3NodeDownloadSQL
 - name: "2NodeDownloadSQL"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure" 
+  onFailure: "step:deleteStack" 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
@@ -589,14 +861,14 @@ mainSteps:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/DownloadSQLEE.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/DownloadSQLEE.ps1"}'
       commandLine: "./DownloadSQLEE.ps1 -SQLServerVersion {{SQLServerVersion}}"
 - name: "2NodeSQLInstallMOF"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure" 
+  onFailure: "step:deleteStack" 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
@@ -604,14 +876,14 @@ mainSteps:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/Install-SQLEE.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/Install-SQLEE.ps1"}'
       commandLine: "./Install-SQLEE.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}} -SQLServerVersion {{SQLServerVersion}} -SQLSecret {{SQLSecrets}}"
 - name: "2NodeSQLInstall"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
@@ -619,7 +891,7 @@ mainSteps:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -638,7 +910,7 @@ mainSteps:
            DscStatusCheck
 - name: "2NodeInstallSSMS"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   nextStep: "CreateAGBranch"
   inputs:
     DocumentName: AWS-RunPowerShellScript
@@ -647,7 +919,7 @@ mainSteps:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |
@@ -656,42 +928,42 @@ mainSteps:
            Start-Process $ssms $ssmsargs -Wait -ErrorAction Stop
 - name: "3NodeDownloadSQL"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure" 
+  onFailure: "step:deleteStack" 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/DownloadSQLEE.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/DownloadSQLEE.ps1"}'
       commandLine: "./DownloadSQLEE.ps1 -SQLServerVersion {{SQLServerVersion}}"
 - name: "3NodeSQLInstallMOF"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure" 
+  onFailure: "step:deleteStack" 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/Install-SQLEE.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/Install-SQLEE.ps1"}'
       commandLine: "./Install-SQLEE.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}} -SQLServerVersion {{SQLServerVersion}} -SQLSecret {{SQLSecrets}}"
 - name: "3NodeSQLInstall"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -710,7 +982,7 @@ mainSteps:
            DscStatusCheck
 - name: "3NodeInstallSSMS"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   nextStep: "CreateAGBranch"
   inputs:
     DocumentName: AWS-RunPowerShellScript
@@ -718,7 +990,7 @@ mainSteps:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |
@@ -740,7 +1012,7 @@ mainSteps:
       NextStep: 3NodeReconfigureSQL
 - name: "2NodeReconfigureSQL"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   nextStep: "CreateAGBranch" 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
@@ -749,14 +1021,14 @@ mainSteps:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/Reconfigure-SQL-DSC.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/Reconfigure-SQL-DSC.ps1"}'
       commandLine: "./Reconfigure-SQL-DSC.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}}"
 - name: "3NodeReconfigureSQL"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   nextStep: "CreateAGBranch" 
   inputs:
     DocumentName: "AWS-RunRemoteScript"
@@ -764,10 +1036,10 @@ mainSteps:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/Reconfigure-SQL-DSC.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/Reconfigure-SQL-DSC.ps1"}'
       commandLine: "./Reconfigure-SQL-DSC.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}}"
 - name: CreateAGBranch
   action: aws:branch
@@ -803,21 +1075,21 @@ mainSteps:
       NextStep: 3NodeMadPrimaryCreateAG
 - name: "2NodeNoMadPrimaryCreateAG"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/CreateAGNode1.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/CreateAGNode1.ps1"}'
       commandLine: "./CreateAGNode1.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}} -ClusterName {{ClusterName}} -AvailabiltyGroupName {{AvailabiltyGroupName}} -WSFCNode1NetBIOSName {{WSFCNode1NetBIOSName}} -WSFCNode2NetBIOSName {{WSFCNode2NetBIOSName}} -AGListener1PrivateIP1 {{WSFCNode1PrivateIP3}} -AGListener1PrivateIP2 {{WSFCNode2PrivateIP3}}"
 - name: "2NodeNoMadPrimaryCreateAGConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   nextStep: "AdditionalCreateAGBranch"
   inputs:
     DocumentName: AWS-RunPowerShellScript
@@ -825,7 +1097,7 @@ mainSteps:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -844,21 +1116,21 @@ mainSteps:
            DscStatusCheck
 - name: "2NodeMadPrimaryCreateAG"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/CreateAGNode1.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/CreateAGNode1.ps1"}'
       commandLine: "./CreateAGNode1.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}} -ClusterName {{ClusterName}} -AvailabiltyGroupName {{AvailabiltyGroupName}} -WSFCNode1NetBIOSName {{WSFCNode1NetBIOSName}} -WSFCNode2NetBIOSName {{WSFCNode2NetBIOSName}} -AGListener1PrivateIP1 {{WSFCNode1PrivateIP3}} -AGListener1PrivateIP2 {{WSFCNode2PrivateIP3}} -ManagedAD 'Yes'"
 - name: "2NodeMadPrimaryCreateAGConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   nextStep: "AdditionalCreateAGBranch"
   inputs:
     DocumentName: AWS-RunPowerShellScript
@@ -866,7 +1138,7 @@ mainSteps:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -885,21 +1157,21 @@ mainSteps:
            DscStatusCheck
 - name: "3NodeNoMadPrimaryCreateAG"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/CreateAGNode1.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/CreateAGNode1.ps1"}'
       commandLine: "./CreateAGNode1.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}} -ClusterName {{ClusterName}} -AvailabiltyGroupName {{AvailabiltyGroupName}} -WSFCNode1NetBIOSName {{WSFCNode1NetBIOSName}} -WSFCNode2NetBIOSName {{WSFCNode2NetBIOSName}} -AGListener1PrivateIP1 {{WSFCNode1PrivateIP3}} -AGListener1PrivateIP2 {{WSFCNode2PrivateIP3}} -WSFCNode3NetBIOSName {{WSFCNode3NetBIOSName}} -AGListener1PrivateIP3 {{WSFCNode3PrivateIP3}}"
 - name: "3NodeNoMadPrimaryCreateAGConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   nextStep: "AdditionalCreateAGBranch"
   inputs:
     DocumentName: AWS-RunPowerShellScript
@@ -907,7 +1179,7 @@ mainSteps:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -926,28 +1198,28 @@ mainSteps:
            DscStatusCheck
 - name: "3NodeMadPrimaryCreateAG"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/CreateAGNode1.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/CreateAGNode1.ps1"}'
       commandLine: "./CreateAGNode1.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}} -ClusterName {{ClusterName}} -AvailabiltyGroupName {{AvailabiltyGroupName}} -WSFCNode1NetBIOSName {{WSFCNode1NetBIOSName}} -WSFCNode2NetBIOSName {{WSFCNode2NetBIOSName}} -AGListener1PrivateIP1 {{WSFCNode1PrivateIP3}} -AGListener1PrivateIP2 {{WSFCNode2PrivateIP3}} -WSFCNode3NetBIOSName {{WSFCNode3NetBIOSName}} -AGListener1PrivateIP3 {{WSFCNode3PrivateIP3}} -ManagedAD 'Yes'"
 - name: "3NodeMadPrimaryCreateAGConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -979,29 +1251,29 @@ mainSteps:
       NextStep: 3NodeAdditionalCreateAG
 - name: "2NodeAdditionalCreateAG"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/AdditionalNodeCreateAG.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/AdditionalNodeCreateAG.ps1"}'
       commandLine: "./AdditionalNodeCreateAG.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}} -ClusterName {{ClusterName}} -AvailabiltyGroupName {{AvailabiltyGroupName}} -PrimaryNetBIOSName {{WSFCNode1NetBIOSName}}"
 - name: "2NodeAdditionalCreateAGConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
-  nextStep: "CFNSignalEnd"
+  onFailure: "step:deleteStack"
+  isEnd: true
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -1020,7 +1292,7 @@ mainSteps:
            DscStatusCheck
 - name: "3NodeAdditionalCreateAG"
   action: "aws:runCommand"
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
   inputs:
     DocumentName: "AWS-RunRemoteScript"
     InstanceIds:
@@ -1028,14 +1300,15 @@ mainSteps:
       - "{{wsfcNode3InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       sourceType: "S3"
-      sourceInfo: '{"path": "https://s3.amazonaws.com/{{QSS3BucketName}}/{{QSS3KeyPrefix}}scripts/AdditionalNodeCreateAG.ps1"}'
+      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/AdditionalNodeCreateAG.ps1"}'
       commandLine: "./AdditionalNodeCreateAG.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}} -ClusterName {{ClusterName}} -AvailabiltyGroupName {{AvailabiltyGroupName}} -PrimaryNetBIOSName {{WSFCNode1NetBIOSName}}"
 - name: "3NodeAdditionalCreateAGConfig"
   action: aws:runCommand
-  onFailure: "step:signalfailure"
+  onFailure: "step:deleteStack"
+  isEnd: true
   inputs:
     DocumentName: AWS-RunPowerShellScript
     InstanceIds: 
@@ -1043,7 +1316,7 @@ mainSteps:
       - "{{wsfcNode3InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
         - |     
@@ -1060,42 +1333,9 @@ mainSteps:
            Start-DscConfiguration 'C:\AWSQuickstart\AddAG' -Wait -Verbose -Force
 
            DscStatusCheck
-# Determines if CFN Needs to be Signaled or if Work flow should just end
-- name: CFNSignalEnd
-  action: aws:branch
+- name: deleteStack
+  action: aws:deleteStack
+  isEnd: true
+  onFailure: Continue
   inputs:
-    Choices:
-    - NextStep: signalsuccess
-      Not: 
-        Variable: "{{StackName}}"
-        StringEquals: ""
-    - NextStep: sleepend
-      Variable: "{{StackName}}"
-      StringEquals: ""
-# If all steps complete successfully signals CFN of Success
-- name: "signalsuccess"
-  action: "aws:executeAwsApi"
-  isEnd: True
-  inputs:
-    Service: cloudformation
-    Api: SignalResource
-    LogicalResourceId: "SSMWaitCondition"
     StackName: "{{StackName}}"
-    Status: SUCCESS
-    UniqueId: "{{wsfcNode2InstanceId.InstanceId}}"
-# If CFN Signl Not Needed this sleep ends work flow
-- name: "sleepend"
-  action: "aws:sleep"
-  isEnd: True
-  inputs:
-    Duration: PT1S
-# If any steps fails signals CFN of Failure
-- name: "signalfailure"
-  action: "aws:executeAwsApi"
-  inputs:
-    Service: cloudformation
-    Api: SignalResource
-    LogicalResourceId: "SSMWaitCondition"
-    StackName: "{{StackName}}"
-    Status: FAILURE
-    UniqueId: "{{wsfcNode2InstanceId.InstanceId}}"
