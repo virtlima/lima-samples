@@ -1,0 +1,50 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MGMT312 IAM Role
+Resources: 
+  SCEndUserRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSServiceCatalogEndUserFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              AWS: !Sub '${AWS::AccountId}'
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ServiceActionsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: S3LaunchPolicySID
+                Effect: Allow
+                Action:
+                  - servicecatalog:ListServiceActionsForProvisioningArtifact
+                  - servicecatalog:ExecuteprovisionedProductServiceAction
+                  - ssm:DescribeDocument
+                  - ec2:*
+                  - ssm:GetAutomationExecution
+                  - ssm:StartAutomationExecution
+                  - ssm:StopAutomationExecution
+                  - cloudformation:ListStackResources
+                Resource: '*'
+      RoleName: !Sub 'sc_end_user_${AWS::StackName}'
+  SCAdminUserRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              AWS: !Sub '${AWS::AccountId}'
+            Action: sts:AssumeRole
+      RoleName: !Sub 'sc_admin_${AWS::StackName}'

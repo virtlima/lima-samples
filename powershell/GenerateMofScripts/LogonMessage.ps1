@@ -22,7 +22,8 @@ configuration LogonMessage {
 
     Node 'localhost'{
         SecurityOption LogonMessage {
-            Name = "Message Test"
+            Name = "LogonMessage"
+            Interactive_logon_Message_title_for_users_attempting_to_log_on = 'Logon policy for BMS Test'
             Interactive_logon_Message_text_for_users_attempting_to_log_on = $multiLineMessage
         }
 

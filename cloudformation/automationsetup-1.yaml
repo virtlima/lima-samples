@@ -1,0 +1,247 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation template IAM Roles for Systems Manager | Automation Service
+Parameters :
+  LatestWindowsAmiId :
+    # Use public Systems Manager Parameter
+    Type : 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base'
+  LatestAmazonLinuxAmiId :
+    # Use public Systems Manager Parameter
+    Type : 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-gp2'
+  MasterAccountNumber :
+    # Account number for the master account
+    Type : 'String'
+    Description: 'Account number for the master account.'
+    Default: '773304212436'
+  MasterAccountS3Bucket :
+    # Name of the S3 bucket that lives in the master account
+    Type : 'String'
+    Description: 'Name of the S3 bucket that lives in the master account.'
+    Default: 'multiaccountpatch'
+  MasterAccountS3BucketInventoryPrefix :
+    # Name of the S3 bucket that lives in the master account for inventory data
+    Type : 'String'
+    Description: 'Name of the prefix to use in the master account S3 bucket for inventory data.'
+    Default: 'inventory'
+  MasterAccountS3BucketInventoryExecutionPrefix :
+    # Name of the S3 bucket that lives in the master account for inventory execution data
+    Type : 'String'
+    Description: 'Name of the prefix to use in the master account S3 bucket for inventory execution data.'
+    Default: 'inventory-execution-logs'
+  MasterAccountS3BucketRegion :
+    # Name of the S3 bucket that lives in the master account
+    Type : 'String'
+    Description: 'Region where the master account S3 bucket is located.'
+    Default: 'us-west-1'
+  ResourceDataSyncName :
+    # Name for the Resource Data Sync
+    Type : 'String'
+    Description: 'Name for the Resource Data Sync.'
+    Default: 'InventoryData'
+  SNSTopicName :
+    # Name for the SNS Topic
+    Type : 'String'
+    Description: 'Name for the SNS Topic.'
+    Default: 'SSMSNSTopic'
+  SNSSubscriptionEmail :
+    # Name for the SNS Subscription Endpoint
+    Type : 'String'
+    Description: 'Email address for the SNS Subscription.'
+    Default: 'erikwebe@amazon.com'
+
+Resources:
+  ManagedInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ssm.amazonaws.com
+            - ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Path: "/"
+      Policies:
+      - PolicyName: multiaccount
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          # Cross account S3 access
+          - Effect: Allow
+            Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:PutObjectAcl
+            Resource: !Join [ '', ['arn:aws:s3:::', !Ref 'MasterAccountS3Bucket', '/*'] ]
+
+  ManagedInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - !Ref ManagedInstanceRole
+      InstanceProfileName: ManagedInstanceProfile 
+
+  AutomationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ssm.amazonaws.com
+            AWS: !Join [ '', ['arn:aws:iam::', !Ref 'MasterAccountNumber', ':root'] ]
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      Path: "/"
+      RoleName: AWS-SystemsManager-AutomationExecutionRole
+      Policies:
+      - PolicyName: multiaccount
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - '*'
+            Resource:
+            - '*'
+            # Allow the role to pass itself
+          - Effect: Allow
+            Action:
+            - iam:PassRole
+            Resource: !Join [ '', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/AWS-SystemsManager-AutomationExecutionRole'] ]
+            # Deny IAM permissions
+          - Effect: Deny
+            Action:
+            - iam:ChangePassword
+            - iam:Create
+            - iam:Delete
+            - iam:Detach
+            - iam:Remove
+            - iam:Update
+            - iam:Upload
+            Resource:
+            - '*'
+  SNSServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - sns.amazonaws.com
+            - ssm.amazonaws.com
+          Action: sts:AssumeRole
+      Path: "/"
+      RoleName: SNSServiceRole
+      Policies:
+      - PolicyName: snsPut
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'sns:Publish'
+            Resource:
+            - '*'
+  SSMSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        -
+          Endpoint: !Ref SNSSubscriptionEmail
+          Protocol: "email"
+      TopicName: !Ref SNSTopicName
+  SNSTopicParameter:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: "snstopic"
+      Type: "String"
+      Value: !Join [ ':', ['arn:aws:sns', !Ref 'AWS::Region' , !Ref 'AWS::AccountId', !Ref SNSTopicName] ]
+      Description: "SNS Topic for SSM Run Command notifications."
+  SNSServiceRoleParameter:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: "snsrole"
+      Type: "String"
+      Value: !Join [ '', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/', !Ref SNSServiceRole] ]
+      #arn:aws:iam::717411121116:role/SNSServiceRole
+  MaintenanceWindowServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ssm.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonSSMMaintenanceWindowRole
+      Path: "/"
+      RoleName: MaintenanceWindowServiceRole
+      Policies:
+      - PolicyName: multiaccount
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            # Allow the role to pass the SNS role
+          - Effect: Allow
+            Action:
+            - iam:PassRole
+            Resource: !Join [ '', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/', !Ref SNSServiceRole] ]
+  ResourceDataSync:
+    Type: AWS::SSM::ResourceDataSync
+    Properties: 
+      BucketName: !Ref MasterAccountS3Bucket
+      BucketPrefix: !Ref MasterAccountS3BucketInventoryPrefix
+      BucketRegion: !Ref MasterAccountS3BucketRegion
+      SyncFormat: 'JsonSerDe'
+      SyncName: !Ref ResourceDataSyncName
+  InventoryAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: Inventory-Association
+      Name: AWS-GatherSoftwareInventory
+      ScheduleExpression: "rate(1 day)"
+      OutputLocation:
+        S3Location: 
+          OutputS3BucketName: !Ref MasterAccountS3Bucket
+          OutputS3KeyPrefix: !Ref MasterAccountS3BucketInventoryExecutionPrefix
+      Targets:
+      - Key: InstanceIds
+        Values:
+          - "*"
+
+  # WindowsEc2Instance: 
+  # Type: AWS::EC2::Instance
+  # Properties: 
+    # ImageId: !Ref LatestWindowsAmiId
+    # NetworkInterfaces: 
+      # - AssociatePublicIpAddress: "true"
+        # DeviceIndex: "0"
+        # GroupSet: ""
+        # SubnetId: 
+          # Ref: "PublicSubnet"
+  # LinuxEc2Instance: 
+  # Type: AWS::EC2::Instance
+  # Properties: 
+    # ImageId: !Ref LatestLinuxAmiId
+    # NetworkInterfaces: 
+      # - AssociatePublicIpAddress: "true"
+        # DeviceIndex: "0"
+        # GroupSet: 
+          # - Ref: "myVPCEC2SecurityGroup"
+        # SubnetId: 
+          # Ref: "PublicSubnet"

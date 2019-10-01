@@ -1,0 +1,29 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Cloud9 IDE Template
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Cloud9 Configuration
+      Parameters:
+      - C9Subnet                
+    ParameterLabels:
+      C9Subnet:
+        default: Public Subnet ID        
+Parameters:
+  SubnetID:
+    Description: ID of a Subnet.
+    Type: AWS::EC2::Subnet::Id   
+Resources:
+  C9Instance:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      Name: 'MGT312-Cloud9IDE'
+      Description: !Sub 'MGT312-Cloud9IDE'
+      InstanceType: t3.small
+      SubnetId: !Ref 'SubnetID'
+Outputs:
+  C9Instance:
+    Description: Cloud9 Instance Name
+    Value: !Ref 'C9Instance'

@@ -1,0 +1,173 @@
+---
+schemaVersion: "0.3"
+description: 'Sample Automation to Create a Windows AMI'
+parameters:
+  SourceAmiId:
+    type: String
+    description: '(Required) The source Amazon Machine Image ID.'
+    default: /aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base
+  IamInstanceProfileName:
+    type: String
+    description: '(Required) The name of the role that enables Systems Manager to manage the instance.'
+    default: IAMInstanceProfile
+  InstanceType:
+    type: String
+    description: '(Optional) Select the instance type.'
+    default: m4.large
+  SubnetId:
+    type: String
+    description: '(Optional) Specify the SubnetId if you want to launch into a specific subnet.'
+    default: subnet-dc5f7884
+  NewImageName:
+    type: String
+    description: '(Optional) The name of the new AMI that is created.'
+    default: 'NewAMI_CreatedFrom_{{SourceAmiId}}_On_{{global:DATE_TIME}}'
+  NewImageDescription:
+    type: String
+    description: '(Optional) The description of the new AMI that is created.'
+    default: 'NewAMI_CreatedFrom_{{SourceAmiId}}_On_{{global:DATE}}'
+  S3BucketName:
+    type: String
+    description: 'The S3 bucket to store logs.'
+    default: 'samples-us-east-1'
+mainSteps:
+  # Optional Step: This step will grab the latest AMI ID using SSM Parameter Store  
+  # Doing this we can alway start with the latest AWS AMI and add our needed components. 
+  - name: "GetLatestAmi"
+    action: aws:executeAwsApi
+    inputs:
+      Service: ssm
+      Api: GetParameter
+      Name: '{{ SourceAmiId }}'
+    outputs:
+      - Name: AMI
+        Selector: "$.Parameter.Value"
+        Type: "String"
+  # Required Step: This step will launch an instance from the source AMI that you specified.  
+  # This step will return the instance id of the instance that was launched.
+  - name: LaunchInstance
+    action: 'aws:runInstances'
+    timeoutSeconds: 1800
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      ImageId: '{{ GetLatestAmi.AMI }}'
+      InstanceType: '{{ InstanceType }}'
+      MinInstanceCount: 1
+      MaxInstanceCount: 1
+      IamInstanceProfileName: '{{ IamInstanceProfileName }}'
+      SubnetId: '{{ SubnetId }}'
+  # Optional Step: This step will tag your instance. Why do this? 
+  # Helps make it clear which instance is being used to create this AMI.
+  - name: TagInstance
+    action: 'aws:createTags'
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      ResourceType: EC2
+      ResourceIds: '{{ LaunchInstance.InstanceIds }}'
+      Tags:
+        - Key: "Name"
+          Value: "GoldenAMI__{{automation:EXECUTION_ID}}"
+  # Optional Step: This step shows you how to execute a script on the instance where the script code is inline to this document.
+  - name: ExampleInlineScript
+    action: 'aws:runCommand'
+    timeoutSeconds: 60
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      OutputS3BucketName: "{{S3BucketName}}"
+      OutputS3KeyPrefix: "GoldenAMILogs/{{automation:EXECUTION_ID}}/ExampleInlineScript/"
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+      Parameters:
+        executionTimeout: '7200'
+        commands:
+          - |
+             "$version = [System.Environment]::OSVersion.Version"
+             "Write-Host \"$($version.ToString())\""
+  # Optional Step: This step shows you how to execute a powershell script that is located in S3.
+  - name: ExampleS3Script
+    action: 'aws:runCommand'
+    timeoutSeconds: 60
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: '/GoldenAMILogs/{{automation:EXECUTION_ID}}/ExampleS3Script'
+      DocumentName: AWS-RunRemoteScript
+      InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+      Parameters:
+        executionTimeout: '60'
+        sourceType: "S3"
+        commandLine: "./RemoteS3.ps1"
+        sourceInfo: '{"path": "https://{{S3BucketName}}.s3.amazonaws.com/RemoteS3.ps1"}'
+  # Recommended Step: This step will update the SSM Agent on your instance.
+  - name: UpdateSSMAgent
+    action: 'aws:runCommand'
+    timeoutSeconds: 14400
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      OutputS3BucketName: "{{S3BucketName}}"
+      OutputS3KeyPrefix: "GoldenAMILogs/{{automation:EXECUTION_ID}}/UpdateSSMAgent/"
+      DocumentName: AWS-UpdateSSMAgent
+      InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+      Parameters:
+        allowDowngrade: 'false'
+  # Recommended Step: This step will install all available Windows updates that are available at the time of execution.
+  - name: InstallWindowsUpdates
+    action: 'aws:runCommand'
+    timeoutSeconds: 14400
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      OutputS3BucketName: "{{S3BucketName}}"
+      OutputS3KeyPrefix: "GoldenAMILogs/{{automation:EXECUTION_ID}}/InstallWindowsUpdates/"
+      DocumentName: AWS-InstallWindowsUpdates
+      InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+      Parameters:
+        Action: Install
+  # Required Step: This step will perform sysprep on your instance using the recommended approach from AWS by using the public run command document AWSEC2-RunSysprep.
+  - name: RunSysprepGeneralize
+    action: 'aws:runCommand'
+    timeoutSeconds: 600
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      OutputS3BucketName: "{{S3BucketName}}"
+      OutputS3KeyPrefix: "GoldenAMILogs/{{automation:EXECUTION_ID}}/RunSysprepGeneralize/"
+      DocumentName: AWSEC2-RunSysprep
+      InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+      Parameters:
+        Id: '{{automation:EXECUTION_ID}}'
+  # Required Step: The instance should be in the stopped state prior to creating your image and this step will stop your instance.  This previous sysprep step does not shutdown the OS.
+  - name: StopInstance
+    action: 'aws:changeInstanceState'
+    timeoutSeconds: 7200
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+      CheckStateOnly: false
+      DesiredState: stopped
+  # Required Step:  This step will create a new image from the stopped instance.  It will return the new AMI id.
+  - name: CreateImage
+    action: 'aws:createImage'
+    maxAttempts: 3
+    onFailure: Abort
+    inputs:
+      ImageName: '{{ NewImageName }}'
+      ImageDescription: '{{ NewImageDescription }}'
+      InstanceId: '{{ LaunchInstance.InstanceIds }}'
+      NoReboot: true
+  # Recommended Step: This step will terminiate the instance that was used to create your new AMI.  AWS recommends terminiating it to free resources and saving you $.
+  - name: TerminiateInstance
+    action: 'aws:changeInstanceState'
+    maxAttempts: 3
+    onFailure: Abort
+    isEnd: true
+    inputs:
+      InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+      DesiredState: terminated
