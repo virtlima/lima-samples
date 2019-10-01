@@ -3087,98 +3087,104 @@
                 }
             }
         },
-        "SSMVPCEndpoint": {
+        "VPCInterfaceSG": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enable HTTPS access from the VPC",
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "443",
+                        "ToPort": "443",
+                        "CidrIp": {
+                            "Ref": "VPCCIDR"
+                        }
+                    }
+                ]
+            }
+        },
+        "EC2VPCInterface": {
             "Condition": "PrivateSubnetsCondition",
             "Type": "AWS::EC2::VPCEndpoint",
             "Properties": {
-                "PolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Action": "*",
-                            "Effect": "Allow",
-                            "Resource": "*",
-                            "Principal": "*"
-                        }
-                    ]
+                "PrivateDnsEnabled": true,
+                "ServiceName": {
+                    "Fn::Sub": "com.amazonaws.${AWS::Region}.ec2"
                 },
-                "RouteTableIds": [
-                    {
-                        "Ref": "PrivateSubnet1ARouteTable"
-                    },
-                    {
-                        "Ref": "PrivateSubnet2ARouteTable"
-                    },
-                    {
-                        "Fn::If": [
-                            "PrivateSubnets&3AZCondition",
-                            {
-                                "Ref": "PrivateSubnet3ARouteTable"
-                            },
-                            {
-                                "Ref": "AWS::NoValue"
-                            }
-                        ]
-                    },
-                    {
-                        "Fn::If": [
-                            "PrivateSubnets&4AZCondition",
-                            {
-                                "Ref": "PrivateSubnet4ARouteTable"
-                            },
-                            {
-                                "Ref": "AWS::NoValue"
-                            }
-                        ]
-                    },
-                    {
-                        "Fn::If": [
-                            "AdditionalPrivateSubnetsCondition",
-                            {
-                                "Ref": "PrivateSubnet1BRouteTable"
-                            },
-                            {
-                                "Ref": "AWS::NoValue"
-                            }
-                        ]
-                    },
-                    {
-                        "Fn::If": [
-                            "AdditionalPrivateSubnetsCondition",
-                            {
-                                "Ref": "PrivateSubnet2BRouteTable"
-                            },
-                            {
-                                "Ref": "AWS::NoValue"
-                            }
-                        ]
-                    },
-                    {
-                        "Fn::If": [
-                            "AdditionalPrivateSubnets&3AZCondition",
-                            {
-                                "Ref": "PrivateSubnet3BRouteTable"
-                            },
-                            {
-                                "Ref": "AWS::NoValue"
-                            }
-                        ]
-                    },
-                    {
-                        "Fn::If": [
-                            "AdditionalPrivateSubnets&4AZCondition",
-                            {
-                                "Ref": "PrivateSubnet4BRouteTable"
-                            },
-                            {
-                                "Ref": "AWS::NoValue"
-                            }
-                        ]
-                    }
+                "SecurityGroupIds":[
+                    {"Ref":"VPCInterfaceSG"}
                 ],
+                "SubnetIds" : [
+                    {"Ref":"PrivateSubnet1A"},
+                    {"Ref":"PrivateSubnet2A"}
+                ],
+                "VpcEndpointType": "Interface",
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "EC2MessagesVPCInterface": {
+            "Condition": "PrivateSubnetsCondition",
+            "Type": "AWS::EC2::VPCEndpoint",
+            "Properties": {
+                "PrivateDnsEnabled": true,
+                "ServiceName": {
+                    "Fn::Sub": "com.amazonaws.${AWS::Region}.ec2messages"
+                },
+                "SecurityGroupIds":[
+                    {"Ref":"VPCInterfaceSG"}
+                ],
+                "SubnetIds" : [
+                    {"Ref":"PrivateSubnet1A"},
+                    {"Ref":"PrivateSubnet2A"}
+                ],
+                "VpcEndpointType": "Interface",
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "SSMVPCInterface": {
+            "Condition": "PrivateSubnetsCondition",
+            "Type": "AWS::EC2::VPCEndpoint",
+            "Properties": {
+                "PrivateDnsEnabled": true,
                 "ServiceName": {
                     "Fn::Sub": "com.amazonaws.${AWS::Region}.ssm"
                 },
+                "SecurityGroupIds":[
+                    {"Ref":"VPCInterfaceSG"}
+                ],
+                "SubnetIds" : [
+                    {"Ref":"PrivateSubnet1A"},
+                    {"Ref":"PrivateSubnet2A"}
+                ],
+                "VpcEndpointType": "Interface",
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "SSMMessagesVPCInterface": {
+            "Condition": "PrivateSubnetsCondition",
+            "Type": "AWS::EC2::VPCEndpoint",
+            "Properties": {
+                "PrivateDnsEnabled": true,
+                "ServiceName": {
+                    "Fn::Sub": "com.amazonaws.${AWS::Region}.ssmmessages"
+                },
+                "SecurityGroupIds":[
+                    {"Ref":"VPCInterfaceSG"}
+                ],
+                "SubnetIds" : [
+                    {"Ref":"PrivateSubnet1A"},
+                    {"Ref":"PrivateSubnet2A"}
+                ],
+                "VpcEndpointType": "Interface",
                 "VpcId": {
                     "Ref": "VPC"
                 }
