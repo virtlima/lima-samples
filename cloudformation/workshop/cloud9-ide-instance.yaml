@@ -7,13 +7,13 @@ Metadata:
     - Label:
         default: Cloud9 Configuration
       Parameters:
-      - C9Subnet                
+      - SubnetID               
     ParameterLabels:
-      C9Subnet:
+      SubnetID:
         default: Public Subnet ID        
 Parameters:
   SubnetID:
-    Description: ID of a Subnet.
+    Description: ID of a Subnet
     Type: AWS::EC2::Subnet::Id   
 Resources:
   C9Instance:

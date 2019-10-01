@@ -14,10 +14,6 @@ Metadata:
       - PublicSubnet1CIDR
       - PublicSubnet2CIDR
     - Label:
-        default: Cloud9 configuration
-      Parameters:
-      - C9InstanceType
-    - Label:
         default: AWS Quick Start configuration
       Parameters:
         - QSS3BucketName
@@ -118,17 +114,16 @@ Resources:
         PublicSubnet1CIDR: !Ref 'PublicSubnet1CIDR'
         PublicSubnet2CIDR: !Ref 'PublicSubnet2CIDR'
         NumberOfAZs: !Ref 'NumberOfAZs'
-  IDEStack:
+  Cloud9Stack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub >-
         https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}cloud9-ide-instance.yaml
       Parameters:
-        C9Subnet: !GetAtt 'VPCStack.Outputs.PublicSubnet1ID'
+        SubnetID: !GetAtt 'VPCStack.Outputs.PublicSubnet1ID'
   IAMStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub >-
         https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}iamsetup.yaml
-      Parameters:
-        C9Subnet: !GetAtt 'VPCStack.Outputs.PublicSubnet1ID'
+
