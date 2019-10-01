@@ -8,8 +8,7 @@ Metadata:
         default: VPC network configuration
       Parameters:
       - AvailabilityZones
-      - NumberOfAZs
-      - KeyPairName      
+      - NumberOfAZs    
       - PrivateSubnet1CIDR
       - PrivateSubnet2CIDR
       - PublicSubnet1CIDR
@@ -26,8 +25,6 @@ Metadata:
     ParameterLabels:
       AvailabilityZones:
         default: Availability Zones
-      KeyPairName:
-        default: Key pair name
       QSS3BucketName:
         default: S3 bucket name
       QSS3KeyPrefix:
@@ -75,11 +72,6 @@ Parameters:
     Description: CIDR block for the public (DMZ) subnet 2 located in Availability
       Zone 2
     Type: String
-  KeyPairName:
-    Description: >-
-      The name of an existing public/private key pair, which allows you to
-      securely connect to your instance after it launches.
-    Type: AWS::EC2::KeyPair::KeyName
   QSS3BucketName:
     AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
     ConstraintDescription: >-
@@ -121,7 +113,6 @@ Resources:
           - ','
           - !Ref AvailabilityZones
         CreatePrivateSubnets: 'true'
-        KeyPairName: !Ref KeyPairName
         PrivateSubnet1ACIDR: !Ref 'PrivateSubnet1CIDR'
         PrivateSubnet2ACIDR: !Ref 'PrivateSubnet2CIDR'
         PublicSubnet1CIDR: !Ref 'PublicSubnet1CIDR'
