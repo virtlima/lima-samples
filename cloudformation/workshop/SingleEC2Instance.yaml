@@ -1,5 +1,20 @@
 Description: "Deploy Single EC2 Linux Instance"
 Parameters:
+  EC2InstanceType:
+    AllowedValues:
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+    Default: t3.small
+    Description: Amazon EC2 instance type
+    Type: String
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
@@ -84,7 +99,7 @@ Resources:
     Type: "AWS::EC2::Instance"
     Properties:
       ImageId: !Ref LatestAmiId
-      InstanceType: "t3.small"
+      InstanceType: !Ref EC2InstanceType
       IamInstanceProfile: !Ref SSMInstanceProfile
       NetworkInterfaces:
         - DeleteOnTermination: true

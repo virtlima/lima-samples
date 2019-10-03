@@ -3189,6 +3189,39 @@
                     "Ref": "VPC"
                 }
             }
+        },
+        "SSMParamVPCID":{
+            "Type" : "AWS::SSM::Parameter",
+            "Properties" : {
+                "Description" : "VPC ID for MGMT312",
+                "Name" : "MGMT312VPCID",
+                "Type" : "String",
+                "Value" : {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "SSMParamPrivSub1":{
+            "Type" : "AWS::SSM::Parameter",
+            "Properties" : {
+                "Description" : "Private Subnet ID 1 for MGMT312",
+                "Name" : "MGMT312PrivSub1",
+                "Type" : "String",
+                "Value" : {
+                    "Ref": "PrivateSubnet1A"
+                }
+            }
+        },
+        "SSMParamPrivSub2":{
+            "Type" : "AWS::SSM::Parameter",
+            "Properties" : {
+                "Description" : "Private Subnet ID 2 for MGMT312",
+                "Name" : "MGMT312PrivSub2",
+                "Type" : "String",
+                "Value" : {
+                    "Ref": "PrivateSubnet2A"
+                }
+            }
         }
     },
     "Outputs": {

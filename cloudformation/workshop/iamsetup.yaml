@@ -48,3 +48,54 @@ Resources:
               AWS: !Sub '${AWS::AccountId}'
             Action: sts:AssumeRole
       RoleName: !Sub 'sc_admin_${AWS::StackName}'
+  SwitchRolefullSCAdmin:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: URL to Switch to the SC Admin Role
+      Name: SwitchRolefullSCAdmin
+      Type: String
+      Value: !Join
+        - ''
+        - - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName='
+          - !Select
+            - 1
+            - !Split
+              - /
+              - !GetAtt 'SCAdminUserRole.Arn'
+          - '&displayName=ServiceCatalogAdminUser'
+  SwitchRoleSCEndUserRole:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: URL to Switch to the SC End User Role
+      Name: SwitchRoleSCEndUser
+      Type: String
+      Value: !Join
+        - ''
+        - - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName='
+          - !Select
+            - 1
+            - !Split
+              - /
+              - !GetAtt 'SCEndUserRole.Arn'
+          - '&displayName=ServiceCatalogEndUser'
+Outputs:
+  SwitchRolefullSCAdmin:
+    Value: !Join
+      - ''
+      - - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName='
+        - !Select
+          - 1
+          - !Split
+            - /
+            - !GetAtt 'SCAdminUserRole.Arn'
+        - '&displayName=ServiceCatalogAdminUser'
+  SwitchRoleSCEndUserRole:
+    Value: !Join
+      - ''
+      - - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName='
+        - !Select
+          - 1
+          - !Split
+            - /
+            - !GetAtt 'SCEndUserRole.Arn'
+        - '&displayName=ServiceCatalogEndUser'
