@@ -8,39 +8,11 @@ param(
     [string]$DomainDNSName,
 
     [Parameter(Mandatory=$true)]
-    [string]$AdminSecret,
-
-    [Parameter(Mandatory=$true)]
-    [string]$SQLSecret,
-
-    [Parameter(Mandatory=$true)]
-    [string]$ClusterName,
-
-    [Parameter(Mandatory=$true)]
-    [string]$AvailabiltyGroupName,
-
-    [Parameter(Mandatory=$true)]
-    [string]$WSFCNode1NetBIOSName,
-
-    [Parameter(Mandatory=$true)]
-    [string]$WSFCNode2NetBIOSName,
-
-    [Parameter(Mandatory=$true)]
-    [string]$AGListener1PrivateIP1,
-
-    [Parameter(Mandatory=$true)]
-    [string]$AGListener1PrivateIP2,
-
-    [Parameter(Mandatory=$false)]
-    [string]$WSFCNode3NetBIOSName,
-
-    [Parameter(Mandatory=$false)]
-    [string]$AGListener1PrivateIP3,
-
-    [Parameter(Mandatory=$false)]
-    [string] $ManagedAD
-
+    [string]$AdminSecret
 )
+
+$AdminUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId $AdminSecret).SecretString
+$Credentials = (New-Object PSCredential($ClusterAdminUser,(ConvertTo-SecureString $AdminUser.Password -AsPlainText -Force)))
 
 Function Get-Domain {
 	
@@ -48,30 +20,9 @@ Function Get-Domain {
 	# division.domain.root
 	if ($DomainDNSName -eq "") {
 		[String]$DomainDNSName = [System.DirectoryServices.ActiveDirectory.Domain]::getcurrentdomain()
-	}
-
-	# Create an Array 'Item' for each item in between the '.' characters
-	$FQDNArray = $DomainDNSName.split(".")
-	
-	# Add A Separator of ','
-	$Separator = ","
-
-	# For Each Item in the Array
-	# for (CreateVar; Condition; RepeatAction)
-	# for ($x is now equal to 0; while $x is less than total array length; add 1 to X
-	for ($x = 0; $x -lt $FQDNArray.Length ; $x++)
-		{ 
-
-		#If it's the last item in the array don't append a ','
-		if ($x -eq ($FQDNArray.Length - 1)) { $Separator = "" }
-		
-		# Append to $DN DC= plus the array item with a separator after
-		[string]$DN += "DC=" + $FQDNArray[$x] + $Separator
-		
-		# continue to next item in the array
-		}
-	
-	#return the Distinguished Name
+    }
+    
+    $DN = get-addomain $DomainDNSName | select distinguishedname
 	return $DN
 }
 

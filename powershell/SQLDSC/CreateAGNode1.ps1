@@ -1,38 +1,56 @@
+[CmdletBinding()]
+param(
 
-# Getting the DSC Cert Encryption Thumbprint to Secure the MOF File
-$DscCertThumbprint = (get-childitem -path cert:\LocalMachine\My | where { $_.subject -eq "CN=AWSQSDscEncryptCert" }).Thumbprint
-# Getting Password from Secrets Manager for AD Admin User
-$AdminUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId $AdminSecret).SecretString
-$SQLUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId $SQLSecret).SecretString
-$ClusterAdminUser = $DomainNetBIOSName + '\' + $AdminUser.UserName
-$SQLAdminUser = $DomainNetBIOSName + '\' + $SQLUser.UserName
-# Creating Credential Object for Administrator
-$Credentials = (New-Object PSCredential($ClusterAdminUser,(ConvertTo-SecureString $AdminUser.Password -AsPlainText -Force)))
-$SQLCredentials = (New-Object PSCredential($SQLAdminUser,(ConvertTo-SecureString $SQLUser.Password -AsPlainText -Force)))
+    [Parameter(Mandatory=$true)]
+    [string]$DomainNetBIOSName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$DomainDNSName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$AdminSecret,
+
+    [Parameter(Mandatory=$true)]
+    [string]$SQLSecret,
+
+    [Parameter(Mandatory=$true)]
+    [string]$ClusterName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$AvailabiltyGroupName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$WSFCNode1NetBIOSName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$WSFCNode2NetBIOSName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$AGListener1PrivateIP1,
+
+    [Parameter(Mandatory=$true)]
+    [string]$AGListener1PrivateIP2,
+
+    [Parameter(Mandatory=$false)]
+    [string]$WSFCNode3NetBIOSName,
+
+    [Parameter(Mandatory=$false)]
+    [string]$AGListener1PrivateIP3,
+
+    [Parameter(Mandatory=$false)]
+    [string] $ManagedAD
+
+)
+
 # Getting the Name Tag of the Instance
 $NameTag = (Get-EC2Tag -Filter @{ Name="resource-id";Values=(Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/meta-data/instance-id)}| Where-Object { $_.Key -eq "Name" })
 $NetBIOSName = $NameTag.Value
 
-$IPADDR = 'IP/CIDR' -replace 'IP',$AGListener1PrivateIP1 -replace 'CIDR',(Convert-CidrtoSubnetMask -SubnetMaskCidr (Get-CIDR -Target $WSFCNode1NetBIOSName))
-$IPADDR2 = 'IP/CIDR' -replace 'IP',$AGListener1PrivateIP2 -replace 'CIDR',(Convert-CidrtoSubnetMask -SubnetMaskCidr (Get-CIDR -Target $WSFCNode2NetBIOSName))
-if ($AGListener1PrivateIP3) {
-    $IPADDR3 = 'IP/CIDR' -replace 'IP',$AGListener1PrivateIP3 -replace 'CIDR',(Convert-CidrtoSubnetMask -SubnetMaskCidr (Get-CIDR -Target $WSFCNode3NetBIOSName))  
-}
-
-if ($ManagedAD -eq 'Yes'){
-    $DN = Get-Domain
-    $IdentityReference = $DomainNetBIOSName + "\" + $ClusterName + "$"
-    $OUPath = 'OU=Computers,OU=' + $DomainNetBIOSName + "," + $DN
-}
-
-
-
 $ConfigurationData = @{
     AllNodes = @(
         @{
-            NodeName     = '*'
-            CertificateFile = "C:\AWSQuickstart\publickeys\AWSQSDscPublicKey.cer"
-            Thumbprint = $DscCertThumbprint
+            NodeName="*"
+            PSDscAllowPlainTextPassword = $true
             PSDscAllowDomainUser = $true
         },
         @{
@@ -42,13 +60,15 @@ $ConfigurationData = @{
 }
 
 Configuration AddAG {
-    param(
-        [Parameter(Mandatory = $true)]
-        [PSCredential]$SQLCredentials,
+    $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
+    $Credentials = New-Object PSCredential('{ssm:AdminSecretARN}', $ss)
+    $SQLCredentials = New-Object PSCredential('{ssm:SQLSecretARN}', $ss)
 
-        [Parameter(Mandatory = $true)]
-        [PSCredential]$Credentials
-    )
+    $IPADDR = 'IP/CIDR' -replace 'IP',$AGListener1PrivateIP1 -replace 'CIDR',(Convert-CidrtoSubnetMask -SubnetMaskCidr (Get-CIDR -Target $WSFCNode1NetBIOSName))
+    $IPADDR2 = 'IP/CIDR' -replace 'IP',$AGListener1PrivateIP2 -replace 'CIDR',(Convert-CidrtoSubnetMask -SubnetMaskCidr (Get-CIDR -Target $WSFCNode2NetBIOSName))
+    if ('{$AGListener1PrivateIP3}') {
+        $IPADDR3 = 'IP/CIDR' -replace 'IP',$AGListener1PrivateIP3 -replace 'CIDR',(Convert-CidrtoSubnetMask -SubnetMaskCidr (Get-CIDR -Target $WSFCNode3NetBIOSName))  
+    }
 
     Import-Module -Name PSDesiredStateConfiguration
     Import-Module -Name xActiveDirectory
@@ -62,14 +82,14 @@ Configuration AddAG {
         SqlServerMaxDop 'SQLServerMaxDopAuto' {
             Ensure                  = 'Present'
             DynamicAlloc            = $true
-            ServerName              = $NetBIOSName
+            ServerName              = '{tag:Name}'
             InstanceName            = 'MSSQLSERVER'
             PsDscRunAsCredential    = $SQLCredentials
             ProcessOnlyOnActiveNode = $true
         }
 
         SqlServerConfiguration 'SQLConfigPriorityBoost'{
-            ServerName     = $NetBIOSName
+            ServerName     = '{tag:Name}'
             InstanceName   = 'MSSQLSERVER'
             OptionName     = 'cost threshold for parallelism'
             OptionValue    = 20
@@ -77,7 +97,7 @@ Configuration AddAG {
 
         SqlAlwaysOnService 'EnableAlwaysOn' {
             Ensure               = 'Present'
-            ServerName           = $NetBIOSName
+            ServerName           = '{tag:Name}'
             InstanceName         = 'MSSQLSERVER'
             PsDscRunAsCredential = $SQLCredentials
         }
@@ -86,7 +106,7 @@ Configuration AddAG {
             Ensure               = 'Present'
             Name                 = 'NT SERVICE\ClusSvc'
             LoginType            = 'WindowsUser'
-            ServerName           = $NetBIOSName
+            ServerName           = '{tag:Name}'
             InstanceName         = 'MSSQLSERVER'
             PsDscRunAsCredential = $SQLCredentials
         }
@@ -94,7 +114,7 @@ Configuration AddAG {
         SqlServerPermission 'AddNTServiceClusSvcPermissions' {
             DependsOn            = '[SqlServerLogin]AddNTServiceClusSvc'
             Ensure               = 'Present'
-            ServerName           = $NetBIOSName
+            ServerName           = '{tag:Name}'
             InstanceName         = 'MSSQLSERVER'
             Principal            = 'NT SERVICE\ClusSvc'
             Permission           = 'AlterAnyAvailabilityGroup', 'ViewServerState'
@@ -105,16 +125,20 @@ Configuration AddAG {
             EndPointName         = 'HADR'
             Ensure               = 'Present'
             Port                 = 5022
-            ServerName           = $NetBIOSName
+            ServerName           = '{tag:Name}'
             InstanceName         = 'MSSQLSERVER'
             PsDscRunAsCredential = $SQLCredentials
         }
         
-        if ($ManagedAD -eq 'Yes'){
+        if ('{{ManagedAD}}' -eq 'Yes'){
             WindowsFeature RSAT-ADDS-Tools {
                 Name = 'RSAT-ADDS-Tools'
                 Ensure = 'Present'
             }
+
+            $DN = get-addomain '{{DomainDNSName}}' | Select-Object distinguishedname
+            $IdentityReference = '{{DomainNetBIOSName}}' + "\" + $ClusterName + "$"
+            $OUPath = 'OU=Computers,OU=' + '{{DomainNetBIOSName}}' + "," + $DN
 
             xADObjectPermissionEntry 'ADObjectPermissionEntry' {
                 Ensure                             = 'Present'
@@ -131,9 +155,9 @@ Configuration AddAG {
 
         SqlAG 'AddSQLAG1' {
             Ensure               = 'Present'
-            Name                 = $AvailabiltyGroupName
+            Name                 = '{(AvailabiltyGroupName}}'
             InstanceName         = 'MSSQLSERVER'
-            ServerName           = $NetBIOSName
+            ServerName           = '{tag:Name}'
             AvailabilityMode     = 'SynchronousCommit'
             FailoverMode         = 'Automatic'
             DependsOn = '[SqlAlwaysOnService]EnableAlwaysOn', '[SqlServerEndpoint]HADREndpoint', '[SqlServerPermission]AddNTServiceClusSvcPermissions'
@@ -143,10 +167,10 @@ Configuration AddAG {
         if ($AGListener1PrivateIP3) {
             SqlAGListener 'AGListener1' {
                 Ensure               = 'Present'
-                ServerName           = $NetBIOSName
+                ServerName           = '{tag:Name}'
                 InstanceName         = 'MSSQLSERVER'
-                AvailabilityGroup    = $AvailabiltyGroupName
-                Name                 = $AvailabiltyGroupName
+                AvailabilityGroup    = '{(AvailabiltyGroupName}}'
+                Name                 = '{(AvailabiltyGroupName}}'
                 IpAddress            = $IPADDR,$IPADDR2,$IPADDR3
                 Port                 = 5301
                 DependsOn            = '[SqlAG]AddSQLAG1'
@@ -155,10 +179,10 @@ Configuration AddAG {
         } else {
             SqlAGListener 'AGListener1' {
                 Ensure               = 'Present'
-                ServerName           = $NetBIOSName
+                ServerName           = '{tag:Name}'
                 InstanceName         = 'MSSQLSERVER'
-                AvailabilityGroup    = $AvailabiltyGroupName
-                Name                 = $AvailabiltyGroupName
+                AvailabilityGroup    = '{(AvailabiltyGroupName}}'
+                Name                 = '{(AvailabiltyGroupName}}'
                 IpAddress            = $IPADDR,$IPADDR2
                 Port                 = 5301
                 DependsOn            = '[SqlAG]AddSQLAG1'

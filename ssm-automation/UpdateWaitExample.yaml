@@ -1,0 +1,62 @@
+---
+schemaVersion: "0.3"
+description: "Updates AMI with Linux distribution packages and installs Nginx software"
+assumeRole: "{{AutomationAssumeRole}}"
+parameters:
+  AutomationAssumeRole:
+    default: ""
+    description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+    type: "String" 
+  ResumeTime:
+    description: "Date and Time to Resume"
+    type: "String" 
+mainSteps:
+- name: "getInstanceId"
+  action: aws:executeAwsApi
+  inputs:
+    Service: ec2
+    Api: DescribeInstances
+    Filters:  
+    - Name: "tag:operatingsystem"
+      Values: [ "CentosBoxes" ]
+    - Name: "instance-state-name"
+      Values: [ "running" ]
+  outputs:
+  - Name: InstanceIds
+    Selector: "$.Reservations..Instances..InstanceId"
+    Type: "StringList"
+# This step will Execute the Update on Instances
+- name: "updateOSSoftware"
+  action: "aws:runCommand"
+  maxAttempts: 3
+  timeoutSeconds: 3600
+  inputs:
+    DocumentName: "AWS-RunShellScript"
+    InstanceIds:
+    - "{{getInstanceId.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+    Parameters:
+      commands: 
+        - |
+           sudo yum update -y
+# This Steps will Sleep the Workflow until the Resume Time you Specified in ISO 8601 Time
+- name: sleep
+  action: aws:sleep
+  inputs:
+    Timestamp: '{{ResumeTime}}'
+# This Step will reboot the Instance
+- name: "RebootInstance"
+  action: "aws:runCommand"
+  maxAttempts: 3
+  timeoutSeconds: 3600
+  inputs:
+    DocumentName: "AWS-RunShellScript"
+    InstanceIds:
+    - "{{getInstanceId.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+    Parameters:
+      commands: 
+        - |
+           sudo systemctl reboot

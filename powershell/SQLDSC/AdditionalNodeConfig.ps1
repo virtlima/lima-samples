@@ -1,4 +1,7 @@
 
+$AdminUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{AdminSecrets}}').SecretString
+$SQLUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{SQLSecrets}}').SecretString
+
 $ConfigurationData = @{
     AllNodes = @(
         @{
@@ -14,7 +17,7 @@ $ConfigurationData = @{
 
 Configuration AdditionalWSFCNode {
     $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
-    $Credentials = New-Object PSCredential('{ssm:AdminSecretARN}', $ss)
+    $Credentials = New-Object PSCredential('{{AdminSecretARN}}', $ss)
 
     Import-Module -Name xFailOverCluster
     Import-Module -Name PSDscResources
@@ -27,7 +30,7 @@ Configuration AdditionalWSFCNode {
         Group Administrators {
             GroupName = 'Administrators'
             Ensure = 'Present'
-            MembersToInclude = @('{{DomainNetBIOSName}}\{{GetAdminUser.Name}}', '{{DomainNetBIOSName}}\{{GetSQLUser.Name}}')
+            MembersToInclude = @($AdminUser.UserName, $SQLUser.UserName)
         }
 
         WindowsFeature AddFailoverFeature {
@@ -63,7 +66,6 @@ Configuration AdditionalWSFCNode {
 
         xCluster JoinNodeToCluster {
             Name                          = '{{ClusterName}}'
-            StaticIPAddress               = '{{WSFCNodePrivateIP2}}'
             DomainAdministratorCredential = $Credentials
             DependsOn                     = '[xWaitForCluster]WaitForCluster'
         }

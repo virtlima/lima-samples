@@ -460,7 +460,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
@@ -469,25 +469,90 @@ mainSteps:
     Parameters:
       commands: 
         - |
-           # Formatting AD Admin User to proper format for JoinDomain DSC Resources in this Script
-           $DomainAdmin = '{{DomainNetBIOSName}}\User' -replace 'Domain',$DomainNetBIOSName -replace 'User',$UserName
-           $Admin = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId $AdminSecret).SecretString
-           $AdminUser = $DomainNetBIOSName + '\' + $Admin.UserName
-           # Creating Credential Object for Administrator
-           $Credentials = (New-Object PSCredential($AdminUser,(ConvertTo-SecureString $Admin.Password -AsPlainText -Force)))
-           # Getting the DSC Cert Encryption Thumbprint to Secure the MOF File
-           $DscCertThumbprint = (get-childitem -path cert:\LocalMachine\My | where { $_.subject -eq "CN=AWSQSDscEncryptCert" }).Thumbprint
-           # Getting the Name Tag of the Instance
-           $NameTag = (Get-EC2Tag -Filter @{ Name="resource-id";Values=(Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/meta-data/instance-id)}| Where-Object { $_.Key -eq "Name" })
-           $NewName = $NameTag.Value
+            $ConfigurationData = @{
+                AllNodes = @(
+                    @{
+                        NodeName="*"
+                        PSDscAllowPlainTextPassword = $true
+                        PSDscAllowDomainUser = $true
+                    },
+                    @{
+                        NodeName = 'localhost'
+                    }
+                )
+            }
+            
+            Configuration DomainJoin {
+                
+                $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
+                $Credentials = New-Object PSCredential('{{AdminSecretARN}}', $ss)
+            
+                Import-Module -Name PSDesiredStateConfiguration
+                Import-Module -Name ComputerManagementDsc
+                
+                Import-DscResource -Module PSDesiredStateConfiguration
+                Import-DscResource -Module ComputerManagementDsc
+            
+                Node 'localhost' {
+            
+                    Computer JoinDomain {
+                        Name = '{tag:Name}'
+                        DomainName = '{{DomainDNSName}}'
+                        Credential = $Credentials
+                    }
+                }
+            }
+            
+            DomainJoin -OutputPath 'C:\AWSQuickstart\DomainJoin' -ConfigurationData $ConfigurationData
+- name: "wsfcnDomainConfig"
+  action: aws:runCommand
+  onFailure: "step:deleteStack"
+  inputs:
+    DocumentName: AWS-ApplyDSCMofs
+    InstanceIds: 
+      - "{{wsfcnInstanceIds.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
+    Parameters:
+      AllowPSGalleryModuleSource: True
+      ComplianceType: "Custom:DSC"
+      EnableDebugLogging: "False"
+      EnableVerboseLogging: "False"
+      ModuleSourceBucketName: "NONE"
+      MofOperationMode: "Apply"
+      MofsToApply: "C:\AWSQuickstart\DomainJoin\localhost.mof"
+      RebootBehavior: "AfterMof"
+      ServicePath: "default"
+      UseComputerNameForReporting: "False"
+- name: "Node1nMof"
+  action: "aws:runCommand"
+  onFailure: "step:deleteStack"
+  #nextStep: 
+  inputs:
+    DocumentName: "AWS-RunPowerShellScript"
+    InstanceIds:
+      - "{{wsfcNode1InstanceId.InstanceId}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
+    Parameters:
+      commands: 
+        - | 
+           $AdminUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{AdminSecrets}}').SecretString
+           $SQLUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{SQLSecrets}}').SecretString
+           $ClusterAdminUser = '{{DomainNetBIOSName}}' + '\' + $AdminUser.UserName
+           $SQLAdminUser = '{{DomainNetBIOSName}}' + '\' + $SQLUser.UserName    
            
-           # Creating Configuration Data Block that has the Certificate Information for DSC Configuration Processing
+           if ('{{WSFCFileServerNetBIOSName}}') {
+               $ShareName = "\\" + '{{WSFCFileServerNetBIOSName}}' + "." + '{{DomainDnsName}}' + "\witness"
+           }
+           
            $ConfigurationData = @{
                AllNodes = @(
                    @{
                        NodeName="*"
-                       CertificateFile = "C:\AWSQuickstart\publickeys\AWSQSDscPublicKey.cer"
-                       Thumbprint = $DscCertThumbprint
+                       PSDscAllowPlainTextPassword = $true
                        PSDscAllowDomainUser = $true
                    },
                    @{
@@ -496,97 +561,113 @@ mainSteps:
                )
            }
            
-           Configuration DomainJoin {
-               param(
-                   [PSCredential] $Credentials
-               )
+           Configuration WSFCNode1Config {
            
-               Import-Module -Name PSDesiredStateConfiguration
-               Import-Module -Name ComputerManagementDsc
+               $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
+               $Credentials = New-Object PSCredential('{{AdminSecretARN}}', $ss)
+               $SQLCredentials = New-Object PSCredential('{{SQLSecrets}}', $ss)
+           
+               Import-Module -Name PSDscResources
+               Import-Module -Name xFailOverCluster
+               Import-Module -Name xActiveDirectory
                
-               Import-DscResource -Module PSDesiredStateConfiguration
-               Import-DscResource -Module ComputerManagementDsc
-           
+               Import-DscResource -Module PSDscResources
+               Import-DscResource -ModuleName xFailOverCluster
+               Import-DscResource -ModuleName xActiveDirectory
+               
                Node 'localhost' {
+                   WindowsFeature RSAT-AD-PowerShell {
+                       Name = 'RSAT-AD-PowerShell'
+                       Ensure = 'Present'
+                   }
            
-                   Computer JoinDomain {
-                       Name = $NewName
-                       DomainName = $DomainDNSName
-                       Credential = $Credentials
+                   WindowsFeature AddFailoverFeature {
+                       Ensure = 'Present'
+                       Name   = 'Failover-clustering'
+                       DependsOn = '[WindowsFeature]RSAT-AD-PowerShell' 
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-Mgmt'
+                       DependsOn = '[WindowsFeature]AddFailoverFeature'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringPowerShellFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-PowerShell'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringFeature'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringCmdInterfaceFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-CmdInterface'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringPowerShellFeature'
+                   }
+                   
+                   xADUser SQLServiceAccount {
+                       DomainName = '{{DomainDnsName}}'
+                       UserName = $SQLUser.UserName
+                       Password = $SQLCredentials
+                       DisplayName = $SQLUser.UserName
+                       PasswordAuthentication = 'Negotiate'
+                       DomainAdministratorCredential = $Credentials
+                       Ensure = 'Present'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringCmdInterfaceFeature' 
+                   }
+           
+                   Group Administrators {
+                       GroupName = 'Administrators'
+                       Ensure = 'Present'
+                       MembersToInclude = @($ClusterAdminUser, $SQLAdminUser)
+                       DependsOn = "[xADUser]SQLServiceAccount"
+                   }
+           
+                   xCluster CreateCluster {
+                       Name                          =  '{{ClusterName}}'
+                       DomainAdministratorCredential =  $Credentials
+                       DependsOn                     = '[Group]Administrators'
+                   }
+           
+                   if ('{{WSFCFileServerNetBIOSName}}') {
+                       xClusterQuorum 'SetQuorumToNodeAndFileShareMajority' {
+                           IsSingleInstance = 'Yes'
+                           Type             = 'NodeAndFileShareMajority'
+                           Resource         = $ShareName
+                           DependsOn        = '[xCluster]CreateCluster'
+                       }
+                   } else {
+                       xClusterQuorum 'SetQuorumToNodeMajority' {
+                           IsSingleInstance = 'Yes'
+                           Type             = 'NodeMajority'
+                           DependsOn        = '[xCluster]CreateCluster'
+                       }
                    }
                }
            }
-           
-           DomainJoin -OutputPath 'C:\AWSQuickstart\DomainJoin' -ConfigurationData $ConfigurationData -Credentials $Credentials
-      commandLine: "./DomainJoin.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}}"
-- name: "wsfcnDomainConfig"
-  action: aws:runCommand
-  onFailure: "step:deleteStack"
-  inputs:
-    DocumentName: AWS-RunPowerShellScript
-    InstanceIds: 
-      - "{{wsfcnInstanceIds.InstanceIds}}"
-    CloudWatchOutputConfig:
-      CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
-    Parameters:
-      commands: 
-        - |     
-           function DscStatusCheck () {
-               $LCMState = (Get-DscLocalConfigurationManager).LCMState
-               if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
-                   'returning 3010, should continue after reboot'
-                   exit 3010
-               } else {
-                 'Completed'
-               }
-           }
-           
-           Start-DscConfiguration 'C:\AWSQuickstart\DomainJoin' -Wait -Verbose -Force
-
-           DscStatusCheck
-- name: "Node1nMof"
-  action: "aws:runCommand"
-  onFailure: "step:deleteStack"
-  #nextStep: 
-  inputs:
-    DocumentName: "AWS-RunRemoteScript"
-    InstanceIds:
-      - "{{wsfcNode1InstanceId.InstanceId}}"
-    CloudWatchOutputConfig:
-      CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
-    Parameters:
-      sourceType: "S3"
-      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/Node1Config.ps1"}'
-      commandLine: "./Node1Config.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -WSFCNode1PrivateIP2 {{WSFCNode1PrivateIP2}} -ClusterName {{ClusterName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}}"
+           WSFCNode1Config -OutputPath 'C:\AWSQuickstart\WSFCNode1Config' -ConfigurationData $ConfigurationData
 - name: "Node1nConfig"
   action: aws:runCommand
   onFailure: "step:deleteStack"
   nextStep: "Node2Mof"
   inputs:
-    DocumentName: AWS-RunPowerShellScript
+    DocumentName: AWS-ApplyDSCMofs
     InstanceIds: 
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
-      commands: 
-        - |     
-           function DscStatusCheck () {
-               $LCMState = (Get-DscLocalConfigurationManager).LCMState
-               if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
-                   'returning 3010, should continue after reboot'
-                   exit 3010
-               } else {
-                 'Completed'
-               }
-           }
-           
-           Start-DscConfiguration 'C:\AWSQuickstart\WSFCNode1Config' -Wait -Verbose -Force
-
-           DscStatusCheck
+      AllowPSGalleryModuleSource: True
+      ComplianceType: "Custom:DSC"
+      EnableDebugLogging: "False"
+      EnableVerboseLogging: "False"
+      ModuleSourceBucketName: "NONE"
+      MofOperationMode: "Apply"
+      MofsToApply: "C:\AWSQuickstart\WSFCNode1Config\localhost.mof"
+      RebootBehavior: "AfterMof"
+      ServicePath: "default"
+      UseComputerNameForReporting: "False"
 - name: "wsfcFileServerInstanceId"
   action: aws:executeAwsApi
   onFailure: "step:deleteStack"
@@ -633,169 +714,418 @@ mainSteps:
       commands: 
         - |
            C:\ProgramData\Amazon\EC2-Windows\Launch\Scripts\InitializeDisks.ps1
-- name: "wsfcwInstallDscModules"
-  action: "aws:runCommand"
-  onFailure: "step:deleteStack"
-  inputs:
-    DocumentName: "AWS-RunRemoteScript"
-    InstanceIds:
-    - "{{wsfcwInstanceIds.InstanceIds}}"
-    CloudWatchOutputConfig:
-      CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
-    Parameters:
-      sourceType: "S3"
-      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/install-sql-modules.ps1"}'
-      commandLine: "./install-sql-modules.ps1"
-- name: "wsfcwLCMConfig"
-  action: "aws:runCommand"
-  onFailure: "step:deleteStack"
-  inputs:
-    DocumentName: "AWS-RunRemoteScript"
-    InstanceIds:
-    - "{{wsfcwInstanceIds.InstanceIds}}"
-    CloudWatchOutputConfig:
-      CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
-    Parameters:
-      sourceType: "S3"
-      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/LCM-Config.ps1"}'
-      commandLine: "./LCM-Config.ps1"
 - name: "wsfcwDomainJoin"
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
-      - "{{wsfcwInstanceIds.InstanceIds}}"
-    CloudWatchOutputConfig:
-      CloudWatchOutputEnabled: "true"
-      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
-    Parameters:
-      sourceType: "S3"
-      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/DomainJoin.ps1"}'
-      commandLine: "./DomainJoin.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}}"
-- name: "wsfcwDomainConfig"
-  action: aws:runCommand
-  onFailure: "step:deleteStack"
-  inputs:
-    DocumentName: AWS-RunPowerShellScript
-    InstanceIds: 
-      - "{{wsfcwInstanceIds.InstanceIds}}"
+      - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
       commands: 
-        - |     
-           function DscStatusCheck () {
-               $LCMState = (Get-DscLocalConfigurationManager).LCMState
-               if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
-                   'returning 3010, should continue after reboot'
-                   exit 3010
-               } else {
-                 'Completed'
-               }
-           }
-           
-           Start-DscConfiguration 'C:\AWSQuickstart\DomainJoin' -Wait -Verbose -Force
-
-           DscStatusCheck
-- name: "wsfcFileServerConfig"
+        - |
+            $ConfigurationData = @{
+                AllNodes = @(
+                    @{
+                        NodeName="*"
+                        PSDscAllowPlainTextPassword = $true
+                        PSDscAllowDomainUser = $true
+                    },
+                    @{
+                        NodeName = 'localhost'
+                    }
+                )
+            }
+            
+            Configuration DomainJoin {
+                
+                $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
+                $Credentials = New-Object PSCredential('{{AdminSecretARN}}', $ss)
+            
+                Import-Module -Name PSDesiredStateConfiguration
+                Import-Module -Name ComputerManagementDsc
+                
+                Import-DscResource -Module PSDesiredStateConfiguration
+                Import-DscResource -Module ComputerManagementDsc
+            
+                Node 'localhost' {
+            
+                    Computer JoinDomain {
+                        Name = '{tag:Name}'
+                        DomainName = '{{DomainDNSName}}'
+                        Credential = $Credentials
+                    }
+                }
+            }
+            
+            DomainJoin -OutputPath 'C:\AWSQuickstart\DomainJoin' -ConfigurationData $ConfigurationData
+- name: "wsfcwDomainConfig"
+  action: aws:runCommand
+  onFailure: "step:deleteStack"
+  inputs:
+    DocumentName: AWS-ApplyDSCMofs
+    InstanceIds: 
+      - "{{wsfcnInstanceIds.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
+    Parameters:
+      AllowPSGalleryModuleSource: True
+      ComplianceType: "Custom:DSC"
+      EnableDebugLogging: "False"
+      EnableVerboseLogging: "False"
+      ModuleSourceBucketName: "NONE"
+      MofOperationMode: "Apply"
+      MofsToApply: "C:\AWSQuickstart\DomainJoin\localhost.mof"
+      RebootBehavior: "AfterMof"
+      ServicePath: "default"
+      UseComputerNameForReporting: "False"
+- name: "wsfcFileServerMof"
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcFileServerInstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
-      sourceType: "S3"
-      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/WSFCFileShare.ps1"}'
-      commandLine: "./WSFCFileShare.ps1"
+      commands: 
+        - | 
+           $ConfigurationData = @{
+               AllNodes = @(
+                   @{
+                       NodeName="*"
+                       PSDscAllowPlainTextPassword = $true
+                       PSDscAllowDomainUser = $true
+                   },
+                   @{
+                       NodeName = 'localhost'
+                   }
+               )
+           }
+           
+           Configuration WSFCFileServer {
+           
+               Import-Module -Name xSmbShare 
+               Import-Module -Name PSDscResources
+               
+               Import-DscResource -ModuleName xSmbShare
+               Import-DscResource -ModuleName PSDscResources
+           
+               Node 'localhost' {
+           
+                   WindowsFeature FileServices {
+                       Ensure = 'Present'
+                       Name   = 'File-Services'
+                   }
+           
+                   File WitnessFolder {
+                       Ensure          = 'Present'
+                       Type            = 'Directory'
+                       DestinationPath = 'C:\witness'
+                   }
+           
+                   File ReplicaFolder {
+                       Ensure          = 'Present'
+                       Type            = 'Directory'
+                       DestinationPath = 'C:\replica'
+                   }
+           
+                   xSmbShare WitnessShare {
+                       Ensure     = 'Present'
+                       Name       = 'witness'
+                       Path       = 'C:\witness'
+                       FullAccess = 'Everyone'
+                       DependsOn  = '[File]WitnessFolder'
+                   }
+           
+                   xSmbShare ReplicaShare {
+                       Ensure     = 'Present'
+                       Name       = 'replica'
+                       Path       = 'C:\replica'
+                       FullAccess = 'Everyone'
+                       DependsOn  = '[File]ReplicaFolder'
+                   }
+               }
+           }
+           
+           WSFCFileServer -OutputPath 'C:\AWSQuickstart\WSFCFileServer' -ConfigurationData $ConfigurationData
+- name: "wsfcFileServerConfig"
+  action: aws:runCommand
+  onFailure: "step:deleteStack"
+  inputs:
+    DocumentName: AWS-ApplyDSCMofs
+    InstanceIds: 
+      - "{{wsfcFileServerInstanceId.InstanceId}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
+    Parameters:
+      AllowPSGalleryModuleSource: True
+      ComplianceType: "Custom:DSC"
+      EnableDebugLogging: "False"
+      EnableVerboseLogging: "False"
+      ModuleSourceBucketName: "NONE"
+      MofOperationMode: "Apply"
+      MofsToApply: "C:\AWSQuickstart\WSFCFileServer\localhost.mof"
+      RebootBehavior: "AfterMof"
+      ServicePath: "default"
+      UseComputerNameForReporting: "False"
 - name: "Node1wMof"
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   #nextStep: 
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
-      sourceType: "S3"
-      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/Node1Config.ps1"}'
-      commandLine: "./Node1Config.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -WSFCNode1PrivateIP2 {{WSFCNode1PrivateIP2}} -ClusterName {{ClusterName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}} -FileServerNetBIOSName {{WSFCFileServerNetBIOSName}}"
+      commands: 
+        - | 
+           $AdminUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{AdminSecrets}}').SecretString
+           $SQLUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{SQLSecrets}}').SecretString
+           $ClusterAdminUser = '{{DomainNetBIOSName}}' + '\' + $AdminUser.UserName
+           $SQLAdminUser = '{{DomainNetBIOSName}}' + '\' + $SQLUser.UserName    
+           
+           if ('{{WSFCFileServerNetBIOSName}}') {
+               $ShareName = "\\" + '{{WSFCFileServerNetBIOSName}}' + "." + '{{DomainDnsName}}' + "\witness"
+           }
+           
+           $ConfigurationData = @{
+               AllNodes = @(
+                   @{
+                       NodeName="*"
+                       PSDscAllowPlainTextPassword = $true
+                       PSDscAllowDomainUser = $true
+                   },
+                   @{
+                       NodeName = 'localhost'
+                   }
+               )
+           }
+           
+           Configuration WSFCNode1Config {
+           
+               $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
+               $Credentials = New-Object PSCredential('{{AdminSecretARN}}', $ss)
+               $SQLCredentials = New-Object PSCredential('{{SQLSecrets}}', $ss)
+           
+               Import-Module -Name PSDscResources
+               Import-Module -Name xFailOverCluster
+               Import-Module -Name xActiveDirectory
+               
+               Import-DscResource -Module PSDscResources
+               Import-DscResource -ModuleName xFailOverCluster
+               Import-DscResource -ModuleName xActiveDirectory
+               
+               Node 'localhost' {
+                   WindowsFeature RSAT-AD-PowerShell {
+                       Name = 'RSAT-AD-PowerShell'
+                       Ensure = 'Present'
+                   }
+           
+                   WindowsFeature AddFailoverFeature {
+                       Ensure = 'Present'
+                       Name   = 'Failover-clustering'
+                       DependsOn = '[WindowsFeature]RSAT-AD-PowerShell' 
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-Mgmt'
+                       DependsOn = '[WindowsFeature]AddFailoverFeature'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringPowerShellFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-PowerShell'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringFeature'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringCmdInterfaceFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-CmdInterface'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringPowerShellFeature'
+                   }
+                   
+                   xADUser SQLServiceAccount {
+                       DomainName = '{{DomainDnsName}}'
+                       UserName = $SQLUser.UserName
+                       Password = $SQLCredentials
+                       DisplayName = $SQLUser.UserName
+                       PasswordAuthentication = 'Negotiate'
+                       DomainAdministratorCredential = $Credentials
+                       Ensure = 'Present'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringCmdInterfaceFeature' 
+                   }
+           
+                   Group Administrators {
+                       GroupName = 'Administrators'
+                       Ensure = 'Present'
+                       MembersToInclude = @($ClusterAdminUser, $SQLAdminUser)
+                       DependsOn = "[xADUser]SQLServiceAccount"
+                   }
+           
+                   xCluster CreateCluster {
+                       Name                          =  '{{ClusterName}}'
+                       DomainAdministratorCredential =  $Credentials
+                       DependsOn                     = '[Group]Administrators'
+                   }
+           
+                   if ('{{WSFCFileServerNetBIOSName}}') {
+                       xClusterQuorum 'SetQuorumToNodeAndFileShareMajority' {
+                           IsSingleInstance = 'Yes'
+                           Type             = 'NodeAndFileShareMajority'
+                           Resource         = $ShareName
+                           DependsOn        = '[xCluster]CreateCluster'
+                       }
+                   } else {
+                       xClusterQuorum 'SetQuorumToNodeMajority' {
+                           IsSingleInstance = 'Yes'
+                           Type             = 'NodeMajority'
+                           DependsOn        = '[xCluster]CreateCluster'
+                       }
+                   }
+               }
+           }
+           WSFCNode1Config -OutputPath 'C:\AWSQuickstart\WSFCNode1Config' -ConfigurationData $ConfigurationData
 - name: "Node1wConfig"
   action: aws:runCommand
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: AWS-RunPowerShellScript
+    DocumentName: AWS-ApplyDSCMofs
     InstanceIds: 
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
-      commands: 
-        - |     
-           function DscStatusCheck () {
-               $LCMState = (Get-DscLocalConfigurationManager).LCMState
-               if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
-                   'returning 3010, should continue after reboot'
-                   exit 3010
-               } else {
-                 'Completed'
-               }
-           }
-           
-           Start-DscConfiguration 'C:\AWSQuickstart\WSFCNode1Config' -Wait -Verbose -Force
-
-           DscStatusCheck
+      AllowPSGalleryModuleSource: True
+      ComplianceType: "Custom:DSC"
+      EnableDebugLogging: "False"
+      EnableVerboseLogging: "False"
+      ModuleSourceBucketName: "NONE"
+      MofOperationMode: "Apply"
+      MofsToApply: "C:\AWSQuickstart\WSFCNode1Config\localhost.mof"
+      RebootBehavior: "AfterMof"
+      ServicePath: "default"
+      UseComputerNameForReporting: "False"
 - name: "Node2Mof"
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
-      sourceType: "S3"
-      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/AdditionalNodeConfig.ps1"}'
-      commandLine: "./AdditionalNodeConfig.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -WSFCNodePrivateIP2 {{WSFCNode2PrivateIP2}} -ClusterName {{ClusterName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}}"
+      commands: 
+        - | 
+           $AdminUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{AdminSecrets}}').SecretString
+           $SQLUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{SQLSecrets}}').SecretString
+           
+           $ConfigurationData = @{
+               AllNodes = @(
+                   @{
+                       NodeName="*"
+                       PSDscAllowPlainTextPassword = $true
+                       PSDscAllowDomainUser = $true
+                   },
+                   @{
+                       NodeName = 'localhost'
+                   }
+               )
+           }
+           
+           Configuration AdditionalWSFCNode {
+               $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
+               $Credentials = New-Object PSCredential('{{AdminSecretARN}}', $ss)
+           
+               Import-Module -Name xFailOverCluster
+               Import-Module -Name PSDscResources
+               
+               Import-DscResource -ModuleName xFailOverCluster
+               Import-DscResource -ModuleName PSDscResources
+           
+               Node 'localhost'{
+           
+                   Group Administrators {
+                       GroupName = 'Administrators'
+                       Ensure = 'Present'
+                       MembersToInclude = @($AdminUser.UserName, $SQLUser.UserName)
+                   }
+           
+                   WindowsFeature AddFailoverFeature {
+                       Ensure = 'Present'
+                       Name   = 'Failover-clustering'
+                       DependsOn = '[Group]Administrators'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-Mgmt'
+                       DependsOn = '[WindowsFeature]AddFailoverFeature'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringPowerShellFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-PowerShell'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringFeature'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringCmdInterfaceFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-CmdInterface'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringPowerShellFeature'
+                   }
+           
+                   xWaitForCluster WaitForCluster {
+                       Name             = '{{ClusterName}}'
+                       RetryIntervalSec = 10
+                       RetryCount       = 60
+                       DependsOn        = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringCmdInterfaceFeature'
+                   }
+           
+                   xCluster JoinNodeToCluster {
+                       Name                          = '{{ClusterName}}'
+                       DomainAdministratorCredential = $Credentials
+                       DependsOn                     = '[xWaitForCluster]WaitForCluster'
+                   }
+               }
+           }
+           
+           AdditionalWSFCNode -OutputPath 'C:\AWSQuickstart\AdditionalWSFCNode' -ConfigurationData $ConfigurationData
 - name: "Node2Config"
   action: aws:runCommand
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: AWS-RunPowerShellScript
+    DocumentName: AWS-ApplyDSCMofs
     InstanceIds: 
-      - "{{wsfcNode2InstanceId.InstanceId}}"
+      - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
-      commands: 
-        - |     
-           function DscStatusCheck () {
-               $LCMState = (Get-DscLocalConfigurationManager).LCMState
-               if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
-                   'returning 3010, should continue after reboot'
-                   exit 3010
-               } else {
-                 'Completed'
-               }
-           }
-           
-           Start-DscConfiguration 'C:\AWSQuickstart\AdditionalWSFCNode' -Wait -Verbose -Force
-
-           DscStatusCheck
+      AllowPSGalleryModuleSource: True
+      ComplianceType: "Custom:DSC"
+      EnableDebugLogging: "False"
+      EnableVerboseLogging: "False"
+      ModuleSourceBucketName: "NONE"
+      MofOperationMode: "Apply"
+      MofsToApply: "C:\AWSQuickstart\AdditionalWSFCNode\localhost.mof"
+      RebootBehavior: "AfterMof"
+      ServicePath: "default"
+      UseComputerNameForReporting: "False"
 - name: 3AZFullBranch
   action: aws:branch
   inputs:
@@ -813,42 +1143,110 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack" 
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode3InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
-      sourceType: "S3"
-      sourceInfo: '{"path": "https://{{QSS3BucketName}}.s3.amazonaws.com/{{QSS3KeyPrefix}}scripts/AdditionalNodeConfig.ps1"}'
-      commandLine: "./AdditionalNodeConfig.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -WSFCNodePrivateIP2 {{WSFCNode3PrivateIP2}} -ClusterName {{ClusterName}} -AdminSecret {{AdminSecrets}} -SQLSecret {{SQLSecrets}}"
+      commands: 
+        - | 
+           $AdminUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{AdminSecrets}}').SecretString
+           $SQLUser = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId '{{SQLSecrets}}').SecretString
+           
+           $ConfigurationData = @{
+               AllNodes = @(
+                   @{
+                       NodeName="*"
+                       PSDscAllowPlainTextPassword = $true
+                       PSDscAllowDomainUser = $true
+                   },
+                   @{
+                       NodeName = 'localhost'
+                   }
+               )
+           }
+           
+           Configuration AdditionalWSFCNode {
+               $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
+               $Credentials = New-Object PSCredential('{{AdminSecretARN}}', $ss)
+           
+               Import-Module -Name xFailOverCluster
+               Import-Module -Name PSDscResources
+               
+               Import-DscResource -ModuleName xFailOverCluster
+               Import-DscResource -ModuleName PSDscResources
+           
+               Node 'localhost'{
+           
+                   Group Administrators {
+                       GroupName = 'Administrators'
+                       Ensure = 'Present'
+                       MembersToInclude = @($AdminUser.UserName, $SQLUser.UserName)
+                   }
+           
+                   WindowsFeature AddFailoverFeature {
+                       Ensure = 'Present'
+                       Name   = 'Failover-clustering'
+                       DependsOn = '[Group]Administrators'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-Mgmt'
+                       DependsOn = '[WindowsFeature]AddFailoverFeature'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringPowerShellFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-PowerShell'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringFeature'
+                   }
+           
+                   WindowsFeature AddRemoteServerAdministrationToolsClusteringCmdInterfaceFeature {
+                       Ensure    = 'Present'
+                       Name      = 'RSAT-Clustering-CmdInterface'
+                       DependsOn = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringPowerShellFeature'
+                   }
+           
+                   xWaitForCluster WaitForCluster {
+                       Name             = '{{ClusterName}}'
+                       RetryIntervalSec = 10
+                       RetryCount       = 60
+                       DependsOn        = '[WindowsFeature]AddRemoteServerAdministrationToolsClusteringCmdInterfaceFeature'
+                   }
+           
+                   xCluster JoinNodeToCluster {
+                       Name                          = '{{ClusterName}}'
+                       DomainAdministratorCredential = $Credentials
+                       DependsOn                     = '[xWaitForCluster]WaitForCluster'
+                   }
+               }
+           }
+           
+           AdditionalWSFCNode -OutputPath 'C:\AWSQuickstart\AdditionalWSFCNode' -ConfigurationData $ConfigurationData
 - name: "Node3Config"
   action: aws:runCommand
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: AWS-RunPowerShellScript
+    DocumentName: AWS-ApplyDSCMofs
     InstanceIds: 
-      - "{{wsfcNode3InstanceId.InstanceId}}"
+      - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
       CloudWatchLogGroupName: '/aws/Quick_Start/{{StackName}}'
     Parameters:
-      commands: 
-        - |     
-           function DscStatusCheck () {
-               $LCMState = (Get-DscLocalConfigurationManager).LCMState
-               if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
-                   'returning 3010, should continue after reboot'
-                   exit 3010
-               } else {
-                 'Completed'
-               }
-           }
-           
-           Start-DscConfiguration 'C:\AWSQuickstart\AdditionalWSFCNode' -Wait -Verbose -Force
-
-           DscStatusCheck
+      AllowPSGalleryModuleSource: True
+      ComplianceType: "Custom:DSC"
+      EnableDebugLogging: "False"
+      EnableVerboseLogging: "False"
+      ModuleSourceBucketName: "NONE"
+      MofOperationMode: "Apply"
+      MofsToApply: "C:\AWSQuickstart\AdditionalWSFCNode\localhost.mof"
+      RebootBehavior: "AfterMof"
+      ServicePath: "default"
+      UseComputerNameForReporting: "False"
 - name: SqlInstallBranch
   action: aws:branch
   inputs:
@@ -876,7 +1274,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack" 
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
       - "{{wsfcNode2InstanceId.InstanceId}}"
@@ -891,7 +1289,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack" 
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
       - "{{wsfcNode2InstanceId.InstanceId}}"
@@ -951,7 +1349,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack" 
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
@@ -965,7 +1363,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack" 
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
@@ -1036,7 +1434,7 @@ mainSteps:
   onFailure: "step:deleteStack"
   nextStep: "CreateAGBranch" 
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
       - "{{wsfcNode2InstanceId.InstanceId}}"
@@ -1052,7 +1450,7 @@ mainSteps:
   onFailure: "step:deleteStack"
   nextStep: "CreateAGBranch" 
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcnInstanceIds.InstanceIds}}"
     CloudWatchOutputConfig:
@@ -1098,7 +1496,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
@@ -1139,7 +1537,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
@@ -1180,7 +1578,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
@@ -1221,7 +1619,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode1InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
@@ -1274,7 +1672,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode2InstanceId.InstanceId}}"
     CloudWatchOutputConfig:
@@ -1315,7 +1713,7 @@ mainSteps:
   action: "aws:runCommand"
   onFailure: "step:deleteStack"
   inputs:
-    DocumentName: "AWS-RunRemoteScript"
+    DocumentName: "AWS-RunPowerShellScript"
     InstanceIds:
       - "{{wsfcNode2InstanceId.InstanceId}}"
       - "{{wsfcNode3InstanceId.InstanceId}}"

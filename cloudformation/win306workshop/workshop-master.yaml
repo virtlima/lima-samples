@@ -1,0 +1,355 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: WIN306 Setup
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Source Network Configuration
+        Parameters:
+          - SrcAvailabilityZones
+          - SrcVPCCIDR
+          - SrcPrivateSubnet1CIDR
+          - SrcPrivateSubnet2CIDR
+          - SrcPublicSubnet1CIDR
+          - SrcPublicSubnet2CIDR
+      - Label:
+          default: Destination Network Configuration
+        Parameters:
+          - DestAvailabilityZones
+          - DestVPCCIDR
+          - DestPrivateSubnet1CIDR
+          - DestPrivateSubnet2CIDR
+          - DestPublicSubnet1CIDR
+          - DestPublicSubnet2CIDR
+      - Label:
+          default: Amazon EC2 Configuration
+        Parameters:
+          - KeyPairName
+          - RDGWInstanceType
+      - Label:
+          default: Microsoft Active Directory Configuration
+        Parameters:
+          - DomainDNSName
+          - DomainNetBIOSName
+          - DomainAdminPassword
+          - ADEdition
+      - Label:
+          default: Microsoft Remote Desktop Gateway Configuration
+        Parameters:
+          - NumberOfRDGWHosts
+          - RDGWCIDR
+      - Label:
+          default: AWS Quick Start Configuration
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+    ParameterLabels:
+      AvailabilityZones:
+        default: Availability Zones
+      DomainAdminPassword:
+        default: Domain Admin Password
+      DomainDNSName:
+        default: Domain DNS Name
+      DomainNetBIOSName:
+        default: Domain NetBIOS Name
+      ADEdition:
+        default: AWS Microsoft AD edition
+      KeyPairName:
+        default: Key Pair Name
+      NumberOfRDGWHosts:
+        default: Number of RDGW hosts
+      PrivateSubnet1CIDR:
+        default: Private Subnet 1 CIDR
+      PrivateSubnet2CIDR:
+        default: Private Subnet 2 CIDR
+      PublicSubnet1CIDR:
+        default: Public Subnet 1 CIDR
+      PublicSubnet2CIDR:
+        default: Public Subnet 2 CIDR
+      QSS3BucketName:
+        default: Quick Start S3 Bucket Name
+      QSS3KeyPrefix:
+        default: Quick Start S3 Key Prefix
+      RDGWInstanceType:
+        default: Remote Desktop Gateway Instance Type
+      RDGWCIDR:
+        default: Allowed Remote Desktop Gateway External Access CIDR
+      VPCCIDR:
+        default: VPC CIDR
+Parameters:
+  SrcAvailabilityZones:
+    Description: 'List of Availability Zones to use for the subnets in the VPC. Note:
+      The logical order is preserved and only 2 AZs are used for this deployment.'
+    Default: 'us-east-2a,us-east-2b'
+    Type: String
+  DestAvailabilityZones:
+    Description: 'List of Availability Zones to use for the subnets in the VPC. Note:
+      The logical order is preserved and only 2 AZs are used for this deployment.'
+    Default: 'us-east-2b,us-east-2c'
+    Type: String
+  DomainAdminPassword:
+    AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
+    Description: Password for the domain admin user. Must be at least 8 characters
+      containing letters, numbers and symbols
+    MaxLength: '32'
+    MinLength: '8'
+    NoEcho: 'true'
+    Type: String
+  DomainDNSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
+    Default: example.com
+    Description: Fully qualified domain name (FQDN) of the forest root domain e.g.
+      example.com
+    MaxLength: '255'
+    MinLength: '2'
+    Type: String
+  DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: example
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier
+      versions of Windows e.g. EXAMPLE
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  ADEdition:
+    AllowedValues:
+      - Standard
+      - Enterprise
+    Default: Standard
+    Description: The AWS Microsoft AD edition. Valid values include Standard and Enterprise.
+    Type: String
+  KeyPairName:
+    Description: Public/private key pairs allow you to securely connect to your instance
+      after it launches
+    Type: AWS::EC2::KeyPair::KeyName
+  NumberOfRDGWHosts:
+    AllowedValues:
+      - '1'
+      - '2'
+      - '3'
+      - '4'
+    Default: '1'
+    Description: Enter the number of Remote Desktop Gateway hosts to create
+    Type: String
+  SrcPrivateSubnet1CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 192.168.0.0/19
+    Description: CIDR block for private subnet 1 located in Availability Zone 1.
+    Type: String
+  SrcPrivateSubnet2CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 192.168.32.0/19
+    Description: CIDR block for private subnet 2 located in Availability Zone 2.
+    Type: String
+  SrcPublicSubnet1CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 192.168.128.0/20
+    Description: CIDR Block for the public DMZ subnet 1 located in Availability Zone
+      1
+    Type: String
+  SrcPublicSubnet2CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 192.168.144.0/20
+    Description: CIDR Block for the public DMZ subnet 2 located in Availability Zone
+      2
+    Type: String
+  DestPrivateSubnet1CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/19
+    Description: CIDR block for private subnet 1 located in Availability Zone 1.
+    Type: String
+  DestPrivateSubnet2CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.32.0/19
+    Description: CIDR block for private subnet 2 located in Availability Zone 2.
+    Type: String
+  DestPublicSubnet1CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.128.0/20
+    Description: CIDR Block for the public DMZ subnet 1 located in Availability Zone
+      1
+    Type: String
+  DestPublicSubnet2CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.144.0/20
+    Description: CIDR Block for the public DMZ subnet 2 located in Availability Zone
+      2
+    Type: String
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: alpublic
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: win306
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+  RDGWInstanceType:
+    Description: Amazon EC2 instance type for the Remote Desktop Gateway instances
+    Type: String
+    Default: t2.large
+    AllowedValues:
+      - t2.large
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+  RDGWCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
+    Description: Allowed CIDR Block for external access to the Remote Desktop Gateways
+    Type: String
+  SrcVPCCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 192.168.0.0/16
+    Description: CIDR Block for the VPC
+    Type: String
+  DestVPCCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/16
+    Description: CIDR Block for the VPC
+    Type: String
+Conditions:
+  GovCloudCondition: !Equals
+    - !Ref 'AWS::Region'
+    - us-gov-west-1
+Resources:
+  SrcVPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}/aws-vpc.template
+        - QSS3Region: !If
+            - GovCloudCondition
+            - s3-us-gov-west-1
+            - s3
+      Parameters:
+        AvailabilityZones: !Ref 'SrcAvailabilityZones'
+        KeyPairName: !Ref 'KeyPairName'
+        NumberOfAZs: '2'
+        PrivateSubnet1ACIDR: !Ref 'SrcPrivateSubnet1CIDR'
+        PrivateSubnet2ACIDR: !Ref 'SrcPrivateSubnet2CIDR'
+        PublicSubnet1CIDR: !Ref 'SrcPublicSubnet1CIDR'
+        PublicSubnet2CIDR: !Ref 'SrcPublicSubnet2CIDR'
+        VPCCIDR: !Ref 'SrcVPCCIDR'
+  DestVPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}/aws-vpc.template
+        - QSS3Region: !If
+            - GovCloudCondition
+            - s3-us-gov-west-1
+            - s3
+      Parameters:
+        AvailabilityZones: !Ref 'DestAvailabilityZones'
+        KeyPairName: !Ref 'KeyPairName'
+        NumberOfAZs: '2'
+        PrivateSubnet1ACIDR: !Ref 'DestPrivateSubnet1CIDR'
+        PrivateSubnet2ACIDR: !Ref 'DestPrivateSubnet2CIDR'
+        PublicSubnet1CIDR: !Ref 'DestPublicSubnet1CIDR'
+        PublicSubnet2CIDR: !Ref 'DestPublicSubnet2CIDR'
+        VPCCIDR: !Ref 'DestVPCCIDR'
+  ADStack:
+    DependsOn: DestVPCStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}/ad-3.template
+        - QSS3Region: !If
+            - GovCloudCondition
+            - s3-us-gov-west-1
+            - s3
+      Parameters:
+        DomainAdminPassword: !Ref 'DomainAdminPassword'
+        DomainDNSName: !Ref 'DomainDNSName'
+        DomainNetBIOSName: !Ref 'DomainNetBIOSName'
+        ADEdition: !Ref 'ADEdition'
+        PrivateSubnet1CIDR: !Ref 'DestPrivateSubnet1CIDR'
+        PrivateSubnet1ID: !GetAtt 'DestVPCStack.Outputs.PrivateSubnet1AID'
+        PrivateSubnet2CIDR: !Ref 'DestPrivateSubnet2CIDR'
+        PrivateSubnet2ID: !GetAtt 'DestVPCStack.Outputs.PrivateSubnet2AID'
+        PublicSubnet1CIDR: !Ref 'DestPublicSubnet1CIDR'
+        PublicSubnet2CIDR: !Ref 'DestPublicSubnet2CIDR'
+        QSS3BucketName: !Ref 'QSS3BucketName'
+        QSS3KeyPrefix: !Ref 'QSS3KeyPrefix'
+        VPCCIDR: !Ref 'DestVPCCIDR'
+        VPCID: !GetAtt 'DestVPCStack.Outputs.VPCID'
+  DestRDGWStack:
+    DependsOn: ADStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ['https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}/rdgw-domain.template',
+        {QSS3Region: !If [GovCloudCondition, s3-us-gov-west-1, s3]}]
+      Parameters:
+        DomainAdminPassword: !Ref 'DomainAdminPassword'
+        DomainAdminUser: 'Admin'
+        DomainDNSName: !Ref 'DomainDNSName'
+        DomainMemberSGID: !GetAtt 'ADStack.Outputs.DomainMemberSGID'
+        DomainNetBIOSName: !Ref 'DomainNetBIOSName'
+        KeyPairName: !Ref 'KeyPairName'
+        NumberOfRDGWHosts: !Ref 'NumberOfRDGWHosts'
+        PublicSubnet1ID: !GetAtt 'DestVPCStack.Outputs.PublicSubnet1ID'
+        PublicSubnet2ID: !GetAtt 'DestVPCStack.Outputs.PublicSubnet2ID'
+        QSS3BucketName: !Ref 'QSS3BucketName'
+        QSS3KeyPrefix: !Sub '${QSS3KeyPrefix}/'
+        RDGWInstanceType: !Ref 'RDGWInstanceType'
+        RDGWCIDR: !Ref 'RDGWCIDR'
+        VPCID: !GetAtt 'DestVPCStack.Outputs.VPCID'
+  SrcRDGWStack:
+    DependsOn: SrcVPCStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}/rdgw-standalone.template
+        - QSS3Region: !If
+            - GovCloudCondition
+            - s3-us-gov-west-1
+            - s3
+      Parameters:
+        AdminPassword: !Ref 'DomainAdminPassword'
+        AdminUser: 'Admin'
+        DomainDNSName: !Ref 'DomainDNSName'
+        KeyPairName: !Ref 'KeyPairName'
+        NumberOfRDGWHosts: !Ref 'NumberOfRDGWHosts'
+        PublicSubnet1ID: !GetAtt 'SrcVPCStack.Outputs.PublicSubnet1ID'
+        PublicSubnet2ID: !GetAtt 'SrcVPCStack.Outputs.PublicSubnet2ID'
+        QSS3BucketName: !Ref 'QSS3BucketName'
+        QSS3KeyPrefix: !Sub '${QSS3KeyPrefix}/'
+        RDGWInstanceType: !Ref 'RDGWInstanceType'
+        RDGWCIDR: !Ref 'RDGWCIDR'
+        VPCID: !GetAtt 'SrcVPCStack.Outputs.VPCID'
+  MigrationInstances:
+    DependsOn: SrcVPCStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}/windowsinstances.yaml
+        - QSS3Region: !If
+            - GovCloudCondition
+            - s3-us-gov-west-1
+            - s3
+      Parameters:
+        SourceLocation: !Ref 'SrcVPCCIDR'
+        SubnetID: !GetAtt 'SrcVPCStack.Outputs.PublicSubnet1ID'
+        VPCID: !GetAtt 'SrcVPCStack.Outputs.VPCID'

@@ -105,17 +105,7 @@ mainSteps:
   - Name: InstanceId
     Selector: "$.Reservations..Instances..InstanceId"
     Type: "StringList"
-- name: "InstallMissingPatches"
-  action: "aws:runCommand"
-  inputs:
-    DocumentName: "AWS-RunPatchBaseline"
-    InstanceIds:
-    - "{{getInstanceId.InstanceId}}"
-    CloudWatchOutputConfig:
-      CloudWatchOutputEnabled: "true"
-    Parameters:
-      Operation: Install
-- name: "InstallDocker"
+- name: "YumUpdate"
   action: "aws:runCommand"
   inputs:
     DocumentName: "AWS-RunShellScript"
@@ -126,17 +116,16 @@ mainSteps:
     Parameters:
       commands: 
         - |
-           sudo amazon-linux-extras install docker
-           sudo service docker start
-- name: "RunNGINX"
-  action: aws:runCommand
+           sudo yum update -y
+- name: "InstallNginx"
+  action: "aws:runCommand"
   inputs:
-    DocumentName: AWS-RunShellScript
-    InstanceIds: 
-      - "{{getInstanceId.InstanceId}}"
+    DocumentName: "AWS-RunShellScript"
+    InstanceIds:
+    - "{{getInstanceId.InstanceId}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
     Parameters:
       commands: 
-        - |     
-           sudo docker run --name some-nginx -v /some/content:/usr/share/nginx/html:ro -d nginx
+        - |
+           sudo amazon-linux-extras install nginx1 -y

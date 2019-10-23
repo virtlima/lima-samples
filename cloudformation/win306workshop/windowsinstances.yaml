@@ -1,0 +1,119 @@
+Description: "Deploy Single EC2 Linux Instance"
+Parameters:
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base"
+  SubnetID:
+    Description: ID of a Subnet.
+    Type: AWS::EC2::Subnet::Id
+  SourceLocation:
+    Description : The CIDR IP address range that can be used to RDP to the EC2 instances
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  VPCID:
+    Description: ID of the target VPC (e.g., vpc-0343606e).
+    Type: AWS::EC2::VPC::Id
+Resources:
+  LabBucket:
+     Type: AWS::S3::Bucket
+     DeletionPolicy: Delete
+  RDPServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDP Access Group
+      VpcId: !Ref 'VPCID'
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3389
+        ToPort: 3389
+        CidrIp: !Ref SourceLocation
+  SSMInstanceRole: 
+    Type : AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                Resource: 
+                  - !Sub 'arn:aws:s3:::aws-ssm-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::aws-windows-downloads-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::amazon-ssm-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::amazon-ssm-packages-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::${AWS::Region}-birdwatcher-prod/*'
+                  - !Sub 'arn:aws:s3:::patch-baseline-snapshot-${AWS::Region}/*'
+                Effect: Allow
+          PolicyName: ssm-custom-s3-policy
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:ListBucket
+                Resource: 
+                  - !Sub 'arn:${AWS::Partition}:s3:::${LabBucket}/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${LabBucket}'
+                Effect: Allow
+          PolicyName: s3-instance-bucket-policy
+      Path: /
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "ec2.amazonaws.com"
+            - "ssm.amazonaws.com"
+          Action: "sts:AssumeRole"
+  SSMInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+      - !Ref SSMInstanceRole
+  CE1EC2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: "m5.large"
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      NetworkInterfaces:
+        - DeleteOnTermination: true
+          DeviceIndex: '0'
+          SubnetId: !Ref 'SubnetID'
+          GroupSet:
+            - !Ref RDPServerSG
+      Tags:
+      - Key: "Name"
+        Value: "CEMigration1"
+  CE2EC2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: "m5.large"
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      NetworkInterfaces:
+        - DeleteOnTermination: true
+          DeviceIndex: '0'
+          SubnetId: !Ref 'SubnetID'
+          GroupSet:
+            - !Ref RDPServerSG
+      Tags:
+      - Key: "Name"
+        Value: "CEMigration2"
+Outputs:
+  EC1PrivateIP:
+    Value: !GetAtt 'CE1EC2Instance.PrivateIp'
+    Description: IP for Migration EC2 Instance 1
+  EC2PrivateIP:
+    Value: !GetAtt 'CE2EC2Instance.PrivateIp'
+    Description: IP for Migration EC2 Instance 2
