@@ -1,14 +1,27 @@
-Description: "Deploy Single EC2 Linux Instance"
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Deploy Single Windows Instance Configure with SSM Association"
 Parameters:
+  EC2InstanceType:
+    AllowedValues:
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+    Default: m5.large
+    Description: Amazon EC2 instance type
+    Type: String
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base"
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
   SubnetID:
     Description: ID of a Subnet.
     Type: AWS::EC2::Subnet::Id
-  SecretsARN:
-    Description: ARN for Secrets in Secrets Manager
-    Type: String
   SourceLocation:
     Description : The CIDR IP address range that can be used to RDP to the EC2 instances
     Type: String
@@ -21,6 +34,9 @@ Parameters:
     Description: ID of the target VPC (e.g., vpc-0343606e).
     Type: AWS::EC2::VPC::Id
 Resources:
+  SSMAssocLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
   RDPServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -52,13 +68,18 @@ Resources:
         - PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                  - secretsmanager:DescribeSecret
+              - Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:ListBucket
                 Resource: 
-                  - !Ref 'SecretsARN'
-          PolicyName: QS-MSSQL-SSM
+                  - !Sub 'arn:${AWS::Partition}:s3:::almofs/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::almofs'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}'
+                Effect: Allow
+          PolicyName: s3-instance-bucket-policy
       Path: /
       ManagedPolicyArns:
         - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
@@ -77,11 +98,11 @@ Resources:
     Properties:
       Roles:
       - !Ref SSMInstanceRole
-  CE1EC2Instance:
+  WINEC2Instance:
     Type: "AWS::EC2::Instance"
     Properties:
       ImageId: !Ref LatestAmiId
-      InstanceType: "m5.large"
+      InstanceType: !Ref EC2InstanceType
       IamInstanceProfile: !Ref SSMInstanceProfile
       NetworkInterfaces:
         - DeleteOnTermination: true
@@ -91,29 +112,50 @@ Resources:
             - !Ref RDPServerSG
       Tags:
       - Key: "Name"
-        Value: "CEMigration1"
-  CE2EC2Instance:
-    Type: "AWS::EC2::Instance"
+        Value: "SSM-Association"
+  IISInstAssociation:
+    Type: AWS::SSM::Association
     Properties:
-      ImageId: !Ref LatestAmiId
-      InstanceType: "m5.large"
-      IamInstanceProfile: !Ref SSMInstanceProfile
-      NetworkInterfaces:
-        - DeleteOnTermination: true
-          DeviceIndex: '0'
-          SubnetId: !Ref 'SubnetID'
-          GroupSet:
-            - !Ref RDPServerSG
-      Tags:
-      - Key: "Name"
-        Value: "CEMigration2"
-Outputs:
-  SSMInstanceProfileName:
-    Description: Name of the Instance Profile
-    Value: !Ref 'SSMInstanceProfile'
-  EC1PrivateIP:
-    Value: !GetAtt 'CE1EC2Instance.PrivateIp'
-    Description: IP for Migration EC2 Instance 1
-  EC2PrivateIP:
-    Value: !GetAtt 'CE2EC2Instance.PrivateIp'
-    Description: IP for Migration EC2 Instance 2
+      AssociationName: InstallIIS
+      Name: AWS-ApplyDSCMofs
+      Targets:
+        - Key: InstanceIds
+          Values: [ !Ref WINEC2Instance ]
+      OutputLocation:
+        S3Location: 
+          OutputS3BucketName: !Ref SSMAssocLogs
+          OutputS3KeyPrefix: 'logs/'
+      Parameters:
+        MofsToApply:
+          - "s3:almofs:stdbuild.mof"
+        ServicePath:
+          - default
+        MofOperationMode:
+          - Apply
+        ComplianceType:
+          - Custom:DSCSample
+        ReportBucketName:
+          - ""
+        StatusBucketName:
+          - ""
+        ModuleSourceBucketName:
+          - "NONE"
+        AllowPSGalleryModuleSource:
+          - "True"
+        ProxyUri:
+          - ""
+        RebootBehavior:
+          - "AfterMof"
+        UseComputerNameForReporting:
+          - "False"
+        EnableVerboseLogging:
+          - "False"
+        EnableDebugLogging:
+          - "False"
+        PreRebootScript: 
+          - ""
+      ScheduleExpression: cron(0/30 * * * ? *)
+      OutputLocation:
+        S3Location: 
+          OutputS3BucketName: almofs
+          OutputS3KeyPrefix: 'logs/'

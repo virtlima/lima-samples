@@ -239,14 +239,6 @@
                 }
             }
         },
-        "ADAdminSecrets": {
-            "Type": "AWS::SecretsManager::Secret",
-            "Properties": {
-              "Name": { "Fn::Sub": "ADAdminSecret-${AWS::StackName}" },
-              "Description": "Admin User Seccrets for Manged AD Quick Start",
-              "SecretString": { "Fn::Sub": "{\"username\":\"Admin\",\"password\":\"${DomainAdminPassword}\"}" }
-            }
-        },
         "MicrosoftAD": {
             "Type": "AWS::DirectoryService::MicrosoftAD",
             "Properties": {
@@ -439,12 +431,6 @@
                 "Ref": "DomainMemberSG"
             },
             "Description": "Domain Member Security Group ID"
-        },
-        "ADSecretsArn": {
-            "Value": {
-                "Ref": "ADAdminSecrets"
-            },
-            "Description": "Managed AD Admin Secrets"
         }
     }
 }

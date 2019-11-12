@@ -17,8 +17,8 @@ mainSteps:
     Service: ec2
     Api: DescribeInstances
     Filters:  
-    - Name: "tag:operatingsystem"
-      Values: [ "CentosBoxes" ]
+    - Name: "tag:Patch Group"
+      Values: [ "AmazonLinux2" ]
     - Name: "instance-state-name"
       Values: [ "running" ]
   outputs:
@@ -28,18 +28,18 @@ mainSteps:
 # This step will Execute the Update on Instances
 - name: "updateOSSoftware"
   action: "aws:runCommand"
-  maxAttempts: 3
-  timeoutSeconds: 3600
   inputs:
-    DocumentName: "AWS-RunShellScript"
+    DocumentName: "PatchRebootOption"
     InstanceIds:
     - "{{getInstanceId.InstanceIds}}"
     CloudWatchOutputConfig:
       CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: '/ssm/updatewaitexample'
     Parameters:
-      commands: 
-        - |
-           sudo yum update -y
+      InstallOverrideList: ""
+      Operation: "Install"
+      RebootOption: "NeverReboot"
+      SnapshotId: ""
 # This Steps will Sleep the Workflow until the Resume Time you Specified in ISO 8601 Time
 - name: sleep
   action: aws:sleep
@@ -47,16 +47,10 @@ mainSteps:
     Timestamp: '{{ResumeTime}}'
 # This Step will reboot the Instance
 - name: "RebootInstance"
-  action: "aws:runCommand"
-  maxAttempts: 3
-  timeoutSeconds: 3600
+  action: "aws:executeAutomation"
   inputs:
-    DocumentName: "AWS-RunShellScript"
-    InstanceIds:
-    - "{{getInstanceId.InstanceIds}}"
-    CloudWatchOutputConfig:
-      CloudWatchOutputEnabled: "true"
-    Parameters:
-      commands: 
-        - |
-           sudo systemctl reboot
+    DocumentName: "AWS-RestartEC2Instance"
+    RuntimeParameters:
+      InstanceId:
+       - "{{getInstanceId.InstanceIds}}"
+      AutomationAssumeRole: "{{AutomationAssumeRole}}"

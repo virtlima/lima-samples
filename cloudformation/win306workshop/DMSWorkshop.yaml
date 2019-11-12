@@ -1,0 +1,598 @@
+# AWS Database Migration Workshop
+# Last Updated on July 17, 2019 by hoomanh@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation Template for AWS Database Migration Workshop.
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      -
+        Label:
+          default: "Database Migration Workshop Lab Environment"
+        Parameters:
+          - LabType
+      - 
+        Label: 
+          default: "Amazon EC2 Configuration"
+        Parameters:
+          - EC2ServerInstanceType
+      - 
+        Label: 
+          default: "Target Amazon RDS Database Configuration"
+        Parameters:
+          - RDSInstanceType           
+      - 
+        Label: 
+          default: "Network Configuration"
+        Parameters: 
+          - VpcCIDR
+Mappings:
+  RegionMap:
+    us-east-1:
+      "DMSAMI" : "ami-077a6363df8e6b81a" # Virginia - Updated July 09, 2019
+    us-east-2:
+      "DMSAMI" : "ami-0b2cd90e595b4fbdf" # Ohio - Updated July 09, 2019
+    us-west-2:
+      "DMSAMI" : "ami-08ad3b503e5fbda86" # Oregon - Updated July 09, 2019
+    ap-south-1:
+       "DMSAMI" : "ami-084b98d08e529a7ce" # Mumbai - Updated July 09, 2019
+    ap-northeast-2:
+       "DMSAMI" : "ami-0cbd98d92366c727e" # Seoul - Updated July 09, 2019
+    ap-southeast-1:
+      "DMSAMI" : "ami-0f6fb229f36616672" # Singapore - Updated July 09, 2019
+    ap-southeast-2:
+      "DMSAMI" : "ami-00795035d4f33fb59" # Sydney - Updated July 09, 2019
+    ap-northeast-1:
+      "DMSAMI" : "ami-00f8c0f2252af1b2f" # Tokyo - Updated July 09, 2019
+    eu-central-1:
+      "DMSAMI" : "ami-03647cb2150df12c9" # Frankfurt - Updated July 09, 2019
+    eu-west-1:
+      "DMSAMI" : "ami-08a343117001e9940" # Ireland - Updated July 09, 2019
+    eu-west-2:
+      "DMSAMI" : "ami-05649ae0708fb839e" # London - Updated July 09, 2019
+    eu-west-3:
+      "DMSAMI" : "ami-0fbb5f624929600ab" # Paris - Updated July 09, 2019
+    eu-north-1:
+      "DMSAMI" : "ami-0364d42f436f62276" # Stockholm - Updated July 09, 
+    sa-east-1:
+      "DMSAMI" : "ami-0101d292d5e2b1ab9" # Sao Paulo - Updated July 09, 2019
+  OracleEngineVersion: 
+    us-east-1: 
+      "ver": "12.1.0.2.v6" # Virginia
+    us-east-2: 
+      "ver": "12.1.0.2.v6" # Ohio
+    us-west-2: 
+      "ver": "12.1.0.2.v6" # Oregon
+    ap-south-1: 
+      "ver": "12.1.0.2.v6" # Mumbai
+    ap-northeast-2: 
+      "ver": "12.1.0.2.v6" # Seoul
+    ap-southeast-1: 
+      "ver": "12.1.0.2.v6" # Singapore
+    ap-southeast-2: 
+      "ver": "12.1.0.2.v6" # Sydney
+    ap-northeast-1: 
+      "ver": "12.1.0.2.v6" # Tokyo
+    eu-central-1: 
+      "ver": "12.1.0.2.v6" # Frankfurt
+    eu-west-1: 
+      "ver": "12.1.0.2.v6" # Ireland
+    eu-west-2:
+      "ver": "12.1.0.2.v6" # London
+    eu-west-3:
+      "ver": "12.1.0.2.v6" # Paris
+    eu-north-1: 
+      "ver": "12.1.0.2.v6" # Stockholm
+    sa-east-1: 
+      "ver": "12.1.0.2.v6" # Sao Paulo
+  OracleSnapshotId: 
+    us-east-1: 
+      "snapid" : "arn:aws:rds:us-east-1:833997227572:snapshot:dms-lab-oracle-source-snapshot01" # Virginia
+    us-east-2: 
+      "snapid" : "arn:aws:rds:us-east-2:833997227572:snapshot:dms-lab-oracle-source-us-east-2-snapshot01" # Ohio
+    us-west-2: 
+      "snapid" : "arn:aws:rds:us-west-2:833997227572:snapshot:dms-lab-oracle-source-us-west-2-snapshot01" # Oregon
+    ap-south-1:
+      "snapid" : "arn:aws:rds:ap-south-1:833997227572:snapshot:dms-lab-oracle-source-ap-south-1-snapshot01" # Mumbai
+    ap-northeast-2:
+      "snapid" : "arn:aws:rds:ap-northeast-2:833997227572:snapshot:dms-lab-oracle-source-ap-northeast-2-snapshot01" # Seoul 
+    ap-southeast-1:
+      "snapid" : "arn:aws:rds:ap-southeast-1:833997227572:snapshot:dms-lab-oracle-source-ap-southeast-1-snapshot01" # Singapore
+    ap-southeast-2:
+      "snapid" : "arn:aws:rds:ap-southeast-2:833997227572:snapshot:dms-lab-oracle-source-ap-southeast-2-snapshot01" # Sydney 
+    ap-northeast-1:
+      "snapid" : "arn:aws:rds:ap-northeast-1:833997227572:snapshot:dms-lab-oracle-source-ap-northeast-1-snapshot01" # Tokyo
+    eu-central-1: 
+      "snapid" : "arn:aws:rds:eu-central-1:833997227572:snapshot:dms-lab-oracle-source-eu-central-1-snapshot01" # Frankfurt
+    eu-west-1:
+      "snapid" : "arn:aws:rds:eu-west-1:833997227572:snapshot:dms-lab-oracle-source-eu-west-1-snapshot01" # Ireland
+    eu-west-2:
+      "snapid" : "arn:aws:rds:eu-west-2:833997227572:snapshot:dms-lab-oracle-source-snapshot" # Paris
+    eu-west-3:
+      "snapid" : "arn:aws:rds:eu-west-3:833997227572:snapshot:dms-lab-oracle-source-snapshot" # Paris
+    eu-north-1:
+      "snapid" : "arn:aws:rds:eu-north-1:833997227572:snapshot:dms-lab-oracle-source-snapshot" # Stockholm
+    sa-east-1:
+      "snapid" : "arn:aws:rds:sa-east-1:833997227572:snapshot:dms-lab-oracle-source-snapshot" # Sao Paulo 
+Parameters:
+  LabType: 
+    Description: 'Select your Database Migration lab:'
+    Type: String
+    Default: 'Microsoft SQL Server to Amazon RDS SQL Server'
+  VpcCIDR:
+    Description: Enter the VPC CIDR range in the form x.x.x.x/16
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/16
+    Default: 10.20.0.0/16
+  EC2ServerInstanceType:
+    Description: Amazon EC2 Instance Type
+    Type: String
+    Default: m5.2xlarge
+    AllowedValues:
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.8xlarge
+      - m5a.large
+      - m5a.xlarge
+      - m5a.2xlarge
+      - m5a.4xlarge
+      - m5a.8xlarge
+      - r5a.large
+      - r5a.xlarge
+      - r5a.2xlarge
+      - r5a.4xlarge
+      - r5a.8xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+    ConstraintDescription: Must be a valid EC2 instance type. 
+  RDSInstanceType:
+    Description: Amazon RDS Aurora Instance Type
+    Type: String
+    Default: db.r4.2xlarge
+    AllowedValues:
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+    ConstraintDescription: Must be a valid Amazon RDS instance type.
+  Subnet1:
+    Description: 'ID of the private subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd)'
+    Type: "AWS::EC2::Subnet::Id"
+  Subnet2:
+    Description: 'ID of the private subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd)'
+    Type: "AWS::EC2::Subnet::Id"
+  VPCID:
+    Description: ID of the target VPC (e.g., vpc-0343606e).
+    Type: AWS::EC2::VPC::Id
+  SSMInstanceProfile:
+    Description: Instance Profile Name
+    Type: String
+  DBPassword:
+    Description: Instance Profile Name
+    Type: String
+    NoEcho: true
+Conditions: 
+  Create-SQLServer-to-AuroraMySQL-Environment: !Equals [ !Ref LabType, 'Microsoft SQL Server to Amazon Aurora (MySQL)' ]
+  Create-SQLServer-to-RDSSQLServer-Environment: !Equals [ !Ref LabType, 'Microsoft SQL Server to Amazon RDS SQL Server' ]
+  Create-Oracle-to-AuroraPostgreSQL-Environment: !Equals [ !Ref LabType, 'Oracle to Amazon Aurora (PostgreSQL)' ]
+  Create-Oracle-to-RDSOracle-Environment: !Equals [ !Ref LabType, 'Oracle to Amazon RDS Oracle' ]
+  Create-Oracle-Environment: !Or [!Equals [ !Ref LabType, 'Oracle to Amazon Aurora (PostgreSQL)'], !Equals [ !Ref LabType, 'Oracle to Amazon RDS Oracle'] ] 
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets available for the DMS Lab 
+      SubnetIds:
+      - Ref: Subnet1
+      - Ref: Subnet2
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref EC2ServerInstanceType
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - EC2Instance
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          DeleteOnTermination: 'true'
+          Iops: '5000'
+          VolumeSize: '250'
+          VolumeType: io1
+      ImageId: 
+        Fn::FindInMap:
+        - RegionMap
+        - !Ref AWS::Region
+        - DMSAMI
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: 'true'
+        DeleteOnTermination: 'true'
+        DeviceIndex: 0
+        SubnetId: !Ref Subnet2
+        GroupSet:
+        - Ref: InstanceSecurityGroup
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - InstanceSecurityGroup
+      GroupDescription: Enable RDP access via port 3389
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '3389'
+        ToPort: '3389'
+        CidrIp: 0.0.0.0/0
+        Description: Allows RDP access to EC2 Instance
+      - IpProtocol: tcp
+        FromPort: '1521'
+        ToPort: '1521'
+        CidrIp: !Ref VpcCIDR
+        Description: Allows Amazon RDS Oracle Access
+      - IpProtocol: tcp
+        FromPort: '5432'
+        ToPort: '5432'
+        CidrIp: !Ref VpcCIDR
+        Description: Allows Amazon RDS Aurora (PostgreSQL) Access
+      - IpProtocol: tcp
+        FromPort: '1433'
+        ToPort: '1433'
+        CidrIp: !Ref VpcCIDR
+        Description: Allows SQL Server Access
+      - IpProtocol: tcp
+        FromPort: '3306'
+        ToPort: '3306'
+        CidrIp: !Ref VpcCIDR 
+        Description: Allows Amazon RDS Aurora (MySQL) Access
+  SourceOracleDB: 
+    Condition: Create-Oracle-Environment
+    Type: AWS::RDS::DBInstance  
+    Properties: 
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - SourceOracleDB  
+      DBName: 'OracleDB'
+      AllocatedStorage: 100
+      MasterUsername: 'dbmaster'
+      MasterUserPassword: !Ref DBPassword
+      DBInstanceClass: 'db.r5.2xlarge'
+      Engine: oracle-ee
+      EngineVersion: 
+        Fn::FindInMap:
+          - OracleEngineVersion
+          - !Ref AWS::Region
+          - ver
+      LicenseModel: bring-your-own-license
+      PubliclyAccessible: false
+      AvailabilityZone: 'ca-central-1b'
+      MultiAZ: false
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      VPCSecurityGroups:
+        - Fn::GetAtt:
+          - OracleSourceSecurityGroup
+          - GroupId
+      DBSnapshotIdentifier: 
+        Fn::FindInMap: 
+          - OracleSnapshotId
+          - !Ref AWS::Region
+          - snapid
+      StorageType: gp2
+      DBInstanceIdentifier:
+        Fn::Join:
+        - "-"
+        - - Ref: AWS::StackName
+          - SourceOracleDB
+  OracleSourceSecurityGroup:
+    Condition: Create-Oracle-Environment
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - OracleSourceSecurityGroup
+      GroupDescription: Security group for Source Oracle Instance.
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '1521'
+        ToPort: '1521'
+        CidrIp: !Ref VpcCIDR
+        Description: Allows Amazon RDS Oracle Access
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - RDSSecurityGroup
+      VpcId: !Ref VPCID
+      GroupDescription: Amazon Aurora RDS Security Group.
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '5432'
+        ToPort: '5432'
+        CidrIp: !Ref VpcCIDR
+        Description: Allows Amazon RDS Aurora (PostgreSQL) Access
+      - IpProtocol: tcp
+        FromPort: '3306'
+        ToPort: '3306'
+        CidrIp: !Ref VpcCIDR
+        Description: Allows Amazon RDS Aurora (MySQL) Access
+      - IpProtocol: tcp
+        FromPort: '1433'
+        ToPort: '1433'
+        CidrIp: !Ref VpcCIDR
+        Description: Allows Microsoft SQL Server Access
+      - IpProtocol: tcp
+        FromPort: '1521'
+        ToPort: '1521'
+        CidrIp: !Ref VpcCIDR
+        Description: Allows Oracle Access
+  AuroraPostgresqlCluster:
+    Condition: Create-Oracle-to-AuroraPostgreSQL-Environment
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - AuroraPostgresqlCluster
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      VpcSecurityGroupIds:
+      - Fn::GetAtt:
+        - RDSSecurityGroup
+        - GroupId
+      Engine: aurora-postgresql
+      EngineVersion: '9.6'
+      DatabaseName: 'AuroraDB'
+      DBClusterParameterGroupName: default.aurora-postgresql9.6
+      MasterUsername: 'dbmaster'
+      MasterUserPassword: !Ref DBPassword
+      Port: '5432'
+      BackupRetentionPeriod: '7'
+    DependsOn: RDSSecurityGroup
+  AuroraPostgresqlParameterGroup:
+    Condition: Create-Oracle-to-AuroraPostgreSQL-Environment
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - AuroraPostgresqlParameterGroup
+      Description: Aurora PostgreSQL DBParameterGroup
+      Family: aurora-postgresql9.6
+      Parameters:
+        shared_preload_libraries: pg_stat_statements
+  AuroraPostgresqlInstance:
+    Condition: Create-Oracle-to-AuroraPostgreSQL-Environment
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - AuroraPostgresqlInstance
+      DBClusterIdentifier:
+        Ref: AuroraPostgresqlCluster
+      DBInstanceIdentifier:
+        Fn::Join:
+        - "-"
+        - - Ref: AWS::StackName
+          - AuroraPostgreSQLInstance
+      Engine: aurora-postgresql
+      EngineVersion: '9.6'
+      DBParameterGroupName:
+        Ref: AuroraPostgresqlParameterGroup
+      DBClusterIdentifier:
+        Ref: AuroraPostgresqlCluster
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      AutoMinorVersionUpgrade: 'true'
+      CopyTagsToSnapshot: 'true'
+      DBInstanceClass: !Ref RDSInstanceType
+      PubliclyAccessible: 'false'
+  AuroraMySQLCluster:
+    Condition: Create-SQLServer-to-AuroraMySQL-Environment
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - AuroraMySQLCluster
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      VpcSecurityGroupIds:
+      - Fn::GetAtt:
+        - RDSSecurityGroup
+        - GroupId
+      DatabaseName: AuroraMySQL
+      Engine: aurora
+      MasterUsername: awssct
+      MasterUserPassword: !Ref DBPassword
+    DependsOn: RDSSecurityGroup 
+  AuroraMySQLInstance:
+    Condition: Create-SQLServer-to-AuroraMySQL-Environment
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - AuroraMySQLInstance
+      DBClusterIdentifier:
+        Ref: AuroraMySQLCluster
+      DBInstanceIdentifier:
+        Fn::Join:
+        - "-"
+        - - Ref: AWS::StackName
+          - AuroraMySQLInstance
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      DBInstanceClass: !Ref RDSInstanceType
+      Engine: aurora
+      EngineVersion: 5.6.10a
+      LicenseModel: general-public-license
+      PubliclyAccessible: 'false'
+  TargetSQLServer:
+    Condition: Create-SQLServer-to-RDSSQLServer-Environment
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - AuroraMySQLInstance
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      VPCSecurityGroups:
+      - Fn::GetAtt:
+        - RDSSecurityGroup
+        - GroupId
+      DBInstanceIdentifier:
+        Fn::Join:
+        - "-"
+        - - Ref: AWS::StackName
+          - TargetSQLServer
+      LicenseModel: license-included
+      Engine: sqlserver-se
+      EngineVersion: 14.00.3049.1.v1
+      DBInstanceClass: !Ref RDSInstanceType
+      AllocatedStorage: '250'
+      Iops: '5000'
+      MasterUsername: awssct
+      MasterUserPassword: !Ref DBPassword
+      PubliclyAccessible: 'false'
+      BackupRetentionPeriod: '0'
+    DependsOn: RDSSecurityGroup
+  TargetOracleDB: 
+    Condition: Create-Oracle-to-RDSOracle-Environment
+    Type: AWS::RDS::DBInstance  
+    Properties: 
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - TargetOracleDB  
+      DBName: 'TargetDB'
+      AllocatedStorage: 100
+      MasterUsername: 'dbmaster'
+      MasterUserPassword: !Ref DBPassword
+      DBInstanceClass: 'db.r5.2xlarge'
+      Engine: oracle-ee
+      EngineVersion: 
+        Fn::FindInMap:
+          - OracleEngineVersion
+          - !Ref AWS::Region
+          - ver
+      LicenseModel: bring-your-own-license
+      PubliclyAccessible: false
+      AvailabilityZone: 'ca-central-1b'
+      MultiAZ: false
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      VPCSecurityGroups:
+        - Fn::GetAtt:
+          - RDSSecurityGroup
+          - GroupId
+      StorageType: gp2
+      DBInstanceIdentifier:
+        Fn::Join:
+        - "-"
+        - - Ref: AWS::StackName
+          - TargetOracleDB
+Outputs:
+  SourceEC2PublicDNS:
+    Description: Public DNS enpoint for the EC2 instance
+    Value:
+      Fn::GetAtt:
+      - EC2Instance
+      - PublicDnsName
+  SourceEC2PrivateDNS:
+    Description: Private DNS endpoint for the EC2 instance
+    Value:
+      Fn::GetAtt:
+      - EC2Instance
+      - PrivateDnsName
+  SourceOracleEndpoint:
+    Condition: Create-Oracle-Environment
+    Description: Source Oracle RDS Endpoint
+    Value:
+      Fn::GetAtt:
+      - SourceOracleDB
+      - Endpoint.Address
+  TargetAuroraPostgreSQLEndpoint:
+    Condition: Create-Oracle-to-AuroraPostgreSQL-Environment
+    Description: Target Aurora (PostgreSQL) Database Endpoint
+    Value:
+      Fn::GetAtt:
+      - AuroraPostgresqlCluster
+      - Endpoint.Address
+  TargetAuroraMySQLEndpoint:
+    Condition: Create-SQLServer-to-AuroraMySQL-Environment
+    Description: Target Aurora (MySQL) Database Endpoint
+    Value:
+      Fn::GetAtt:
+      - AuroraMySQLInstance
+      - Endpoint.Address
+  TargetSQLServerEndpoint:
+    Condition: Create-SQLServer-to-RDSSQLServer-Environment
+    Description: Target MS SQL Server RDS Endpoint
+    Value:
+      Fn::GetAtt:
+      - TargetSQLServer
+      - Endpoint.Address  
+  TargetOracleEndpoint:
+    Condition: Create-Oracle-to-RDSOracle-Environment
+    Description: Target Oracle RDS Instance Endpoint
+    Value:
+      Fn::GetAtt:
+      - TargetOracleDB
+      - Endpoint.Address

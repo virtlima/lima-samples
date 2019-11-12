@@ -1,9 +1,8 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: "Deploy Single Windows Instance Configure with SSM Association"
+Description: "Deploy Single EC2 Linux Instance"
 Parameters:
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
   SubnetID:
     Description: ID of a Subnet.
     Type: AWS::EC2::Subnet::Id
@@ -19,15 +18,18 @@ Parameters:
     Description: ID of the target VPC (e.g., vpc-0343606e).
     Type: AWS::EC2::VPC::Id
 Resources:
-  RDPServerSG:
+  SSMAssocLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+  WebServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: RDP Access Group
+      GroupDescription: Web Server Security Group
       VpcId: !Ref 'VPCID'
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: 3389
-        ToPort: 3389
+        FromPort: 80
+        ToPort: 80
         CidrIp: !Ref SourceLocation
   SSMInstanceRole: 
     Type : AWS::IAM::Role
@@ -56,8 +58,8 @@ Resources:
                   - s3:PutObjectAcl
                   - s3:ListBucket
                 Resource: 
-                  - !Sub 'arn:${AWS::Partition}:s3:::almofs/*'
-                  - !Sub 'arn:${AWS::Partition}:s3:::almofs'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}'
                 Effect: Allow
           PolicyName: s3-instance-bucket-policy
       Path: /
@@ -78,60 +80,52 @@ Resources:
     Properties:
       Roles:
       - !Ref SSMInstanceRole
-  WINEC2Instance:
+  EC2Instance:
     Type: "AWS::EC2::Instance"
     Properties:
       ImageId: !Ref LatestAmiId
-      InstanceType: "m5.large"
+      InstanceType: "t3.small"
       IamInstanceProfile: !Ref SSMInstanceProfile
       NetworkInterfaces:
         - DeleteOnTermination: true
           DeviceIndex: '0'
           SubnetId: !Ref 'SubnetID'
           GroupSet:
-            - !Ref RDPServerSG
+            - !Ref WebServerSG
       Tags:
-      - Key: "Name"
-        Value: "SSM-Association"
-  IISInstAssociation:
+      - Key: 'nginx'
+        Value: 'yes'
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash
+           sudo pip install ansible
+  AnsibleAssociation:
     Type: AWS::SSM::Association
     Properties:
-      AssociationName: InstallIIS
-      Name: AWS-ApplyDSCMofs
+      Name: AWS-ApplyAnsiblePlaybooks
       Targets:
         - Key: InstanceIds
-          Values: [ !Ref WINEC2Instance ]
-      Parameters:
-        MofsToApply:
-          - "s3:almofs:winworkshop.mof"
-        ServicePath:
-          - default
-        MofOperationMode:
-          - Apply
-        ComplianceType:
-          - Custom:DSCSample
-        ReportBucketName:
-          - ""
-        StatusBucketName:
-          - ""
-        ModuleSourceBucketName:
-          - "NONE"
-        AllowPSGalleryModuleSource:
-          - "True"
-        ProxyUri:
-          - ""
-        RebootBehavior:
-          - "AfterMof"
-        UseComputerNameForReporting:
-          - "False"
-        EnableVerboseLogging:
-          - "False"
-        EnableDebugLogging:
-          - "False"
-        PreRebootScript: 
-          - ""
-      ScheduleExpression: cron(0/30 * * * ? *)
+          Values: [ !Ref EC2Instance ]
       OutputLocation:
         S3Location: 
-          OutputS3BucketName: almofs
+          OutputS3BucketName: !Ref SSMAssocLogs
           OutputS3KeyPrefix: 'logs/'
+      Parameters:
+        SourceType:
+          - 'GitHub'
+        SourceInfo:
+          - '{"owner":"silvax", "repository":"andress-nginx", "getOptions":"branch:master"}'
+        InstallDependencies:
+          - 'False'
+        PlaybookFile:
+          - 'playbook.yml'
+        ExtraVariables:
+          - 'SSM=True'
+        Check:
+          - 'False'
+        Verbose:
+          - '-v'
+Outputs:
+  WebServerPublic:
+    Value: !GetAtt 'EC2Instance.PublicDnsName'
+    Description: Public DNS for WebServer

@@ -479,7 +479,7 @@
                 "Tags": [
                     {
                         "Key": "Name",
-                        "Value": "RDGW",
+                        "Value": "Source-RDGW",
                         "PropagateAtLaunch": "true"
                     }
                 ]

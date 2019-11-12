@@ -2,13 +2,10 @@ Description: "Deploy Single EC2 Linux Instance"
 Parameters:
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: "/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
   SubnetID:
     Description: ID of a Subnet.
     Type: AWS::EC2::Subnet::Id
-  SecretsARN:
-    Description: ARN for Secrets in Secrets Manager
-    Type: String
   SourceLocation:
     Description : The CIDR IP address range that can be used to RDP to the EC2 instances
     Type: String
@@ -21,15 +18,18 @@ Parameters:
     Description: ID of the target VPC (e.g., vpc-0343606e).
     Type: AWS::EC2::VPC::Id
 Resources:
-  RDPServerSG:
+  SSMAssocLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+  WebServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: RDP Access Group
+      GroupDescription: Web Server Security Group
       VpcId: !Ref 'VPCID'
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: 3389
-        ToPort: 3389
+        FromPort: 80
+        ToPort: 80
         CidrIp: !Ref SourceLocation
   SSMInstanceRole: 
     Type : AWS::IAM::Role
@@ -52,13 +52,16 @@ Resources:
         - PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                  - secretsmanager:DescribeSecret
+              - Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:ListBucket
                 Resource: 
-                  - !Ref 'SecretsARN'
-          PolicyName: QS-MSSQL-SSM
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}'
+                Effect: Allow
+          PolicyName: s3-instance-bucket-policy
       Path: /
       ManagedPolicyArns:
         - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
@@ -77,43 +80,44 @@ Resources:
     Properties:
       Roles:
       - !Ref SSMInstanceRole
-  CE1EC2Instance:
+  EC2Instance:
     Type: "AWS::EC2::Instance"
     Properties:
       ImageId: !Ref LatestAmiId
-      InstanceType: "m5.large"
+      InstanceType: "t3.small"
       IamInstanceProfile: !Ref SSMInstanceProfile
       NetworkInterfaces:
         - DeleteOnTermination: true
           DeviceIndex: '0'
           SubnetId: !Ref 'SubnetID'
           GroupSet:
-            - !Ref RDPServerSG
+            - !Ref WebServerSG
       Tags:
-      - Key: "Name"
-        Value: "CEMigration1"
-  CE2EC2Instance:
-    Type: "AWS::EC2::Instance"
+      - Key: 'nginx'
+        Value: 'yes'
+  NginxAssociation:
+    # CloudFormation Resource Type that creates State Manager Associations
+    Type: AWS::SSM::Association
     Properties:
-      ImageId: !Ref LatestAmiId
-      InstanceType: "m5.large"
-      IamInstanceProfile: !Ref SSMInstanceProfile
-      NetworkInterfaces:
-        - DeleteOnTermination: true
-          DeviceIndex: '0'
-          SubnetId: !Ref 'SubnetID'
-          GroupSet:
-            - !Ref RDPServerSG
-      Tags:
-      - Key: "Name"
-        Value: "CEMigration2"
+      # Command Document that this Association will run
+      Name: AWS-RunShellScript
+      # Targeting Instance by InstanceId passed from the Logical ID of Instance being created 
+      # in CloudFormation
+      Targets:
+        - Key: InstanceIds
+          Values: [ !Ref EC2Instance ]
+      # The passing in the S3 Bucket that is created in the template that logs will be sent to
+      OutputLocation:
+        S3Location: 
+          OutputS3BucketName: !Ref SSMAssocLogs
+          OutputS3KeyPrefix: 'logs/'
+      # Parameters for the AWS-RunShellScript, in this case commands to install nginx
+      Parameters:
+        commands: 
+          - |
+              sudo amazon-linux-extras install nginx1 -y
+              sudo service nginx start
 Outputs:
-  SSMInstanceProfileName:
-    Description: Name of the Instance Profile
-    Value: !Ref 'SSMInstanceProfile'
-  EC1PrivateIP:
-    Value: !GetAtt 'CE1EC2Instance.PrivateIp'
-    Description: IP for Migration EC2 Instance 1
-  EC2PrivateIP:
-    Value: !GetAtt 'CE2EC2Instance.PrivateIp'
-    Description: IP for Migration EC2 Instance 2
+  WebServerPublic:
+    Value: !GetAtt 'EC2Instance.PublicDnsName'
+    Description: Public DNS for WebServer

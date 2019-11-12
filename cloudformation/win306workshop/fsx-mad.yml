@@ -1,0 +1,24 @@
+Description: >-
+  This template deploys an FSx for Windows Servers for the CA POC
+Parameters:
+  ADId:
+    Description: "Id of the target Managed Active Directory"
+    Type: String
+    Default: ""
+  PrivateSubnet1:
+    Description: Subnet to be used for the Directory
+    Type: String
+Resources:
+  MainFSx:
+    Type: 'AWS::FSx::FileSystem'
+    Properties:
+      FileSystemType: WINDOWS
+      StorageCapacity: 300
+      SubnetIds: 
+       - !Ref PrivateSubnet1
+      WindowsConfiguration:
+        ActiveDirectoryId: !Ref ADId
+        ThroughputCapacity: 8
+        AutomaticBackupRetentionDays: 2
+        CopyTagsToBackups: true
+        

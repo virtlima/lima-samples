@@ -20,7 +20,6 @@
                         "default": "Amazon EC2 Configuration"
                     },
                     "Parameters": [
-                        "KeyPairName",
                         "RDGWInstanceType",
                         "LatestAmiId"
                     ]
@@ -70,9 +69,6 @@
                 },
                 "DomainNetBIOSName": {
                     "default": "Domain NetBIOS Name"
-                },
-                "KeyPairName": {
-                    "default": "Key Pair Name"
                 },
                 "LatestAmiId": {
                     "default": "SSM Parameter to Grab Latest AMI ID"
@@ -140,10 +136,6 @@
             "MaxLength": "15",
             "MinLength": "1",
             "Type": "String"
-        },
-        "KeyPairName": {
-            "Description": "Public/private key pairs allow you to securely connect to your instance after it launches",
-            "Type": "AWS::EC2::KeyPair::KeyName"
         },
         "LatestAmiId": {
             "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
@@ -815,9 +807,6 @@
                         }
                     }
                 ],
-                "KeyName": {
-                    "Ref": "KeyPairName"
-                },
                 "UserData": {
                     "Fn::Base64": {
                         "Fn::Join": [
