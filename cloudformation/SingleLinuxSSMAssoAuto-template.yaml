@@ -1,24 +1,8 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: "Deploy Single Windows Instance Configure with SSM Association"
+Description: "Deploy Single EC2 Linux Instance"
 Parameters:
-  EC2InstanceType:
-    AllowedValues:
-      - t3.nano
-      - t3.micro
-      - t3.small
-      - t3.medium
-      - t3.large
-      - t3.xlarge
-      - t3.2xlarge
-      - m5.large
-      - m5.xlarge
-      - m5.2xlarge
-    Default: m5.large
-    Description: Amazon EC2 instance type
-    Type: String
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
   SubnetID:
     Description: ID of a Subnet.
     Type: AWS::EC2::Subnet::Id
@@ -37,15 +21,72 @@ Resources:
   SSMAssocLogs:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
-  RDPServerSG:
+  ssmnginxinstall:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Automation
+      Content:
+        schemaVersion: "0.3"
+        description: "Updates AMI with Linux distribution packages and installs Nginx software"
+        assumeRole: "{{AutomationAssumeRole}}"
+        parameters:
+          InstanceId:
+            description: "ID of the Instance."
+            type: "String" 
+          AutomationAssumeRole:
+            default: ""
+            description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+            type: "String" 
+        mainSteps:
+        - name: "updateOSSoftware"
+          action: "aws:runCommand"
+          maxAttempts: 3
+          timeoutSeconds: 3600
+          inputs:
+            DocumentName: "AWS-RunShellScript"
+            InstanceIds:
+            - "{{InstanceId}}"
+            CloudWatchOutputConfig:
+              CloudWatchOutputEnabled: "true"
+            Parameters:
+              commands: 
+                - |
+                   sudo yum update -y
+        - name: "InstallNginx"
+          action: "aws:runCommand"
+          inputs:
+            DocumentName: "AWS-RunShellScript"
+            InstanceIds:
+            - "{{InstanceId}}"
+            CloudWatchOutputConfig:
+              CloudWatchOutputEnabled: "true"
+            Parameters:
+              commands:
+                - |
+                    sudo amazon-linux-extras install nginx1 -y
+                    sudo service nginx start
+        - name: "TestInstall"
+          action: "aws:runCommand"
+          maxAttempts: 3
+          timeoutSeconds: 3600
+          onFailure: "Abort"
+          inputs:
+           DocumentName: "AWS-RunShellScript"
+           InstanceIds:
+            - "{{InstanceId}}"
+           Parameters: 
+            commands:
+                - |
+                   curl localhost
+  WebServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: RDP Access Group
+      GroupDescription: Web Server Security Group
       VpcId: !Ref 'VPCID'
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: 3389
-        ToPort: 3389
+        FromPort: 80
+        ToPort: 80
         CidrIp: !Ref SourceLocation
   SSMInstanceRole: 
     Type : AWS::IAM::Role
@@ -74,8 +115,6 @@ Resources:
                   - s3:PutObjectAcl
                   - s3:ListBucket
                 Resource: 
-                  - !Sub 'arn:${AWS::Partition}:s3:::almofs/*'
-                  - !Sub 'arn:${AWS::Partition}:s3:::almofs'
                   - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}/*'
                   - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}'
                 Effect: Allow
@@ -98,63 +137,38 @@ Resources:
     Properties:
       Roles:
       - !Ref SSMInstanceRole
-  WINEC2Instance:
+  EC2Instance:
     Type: "AWS::EC2::Instance"
     Properties:
       ImageId: !Ref LatestAmiId
-      InstanceType: !Ref EC2InstanceType
+      InstanceType: "t3.small"
       IamInstanceProfile: !Ref SSMInstanceProfile
       NetworkInterfaces:
         - DeleteOnTermination: true
           DeviceIndex: '0'
           SubnetId: !Ref 'SubnetID'
           GroupSet:
-            - !Ref RDPServerSG
+            - !Ref WebServerSG
       Tags:
-      - Key: "Name"
-        Value: "SSM-Association"
-  IISInstAssociation:
+      - Key: 'nginx'
+        Value: 'yes'
+  NginxAssociation:
     Type: AWS::SSM::Association
     Properties:
-      AssociationName: InstallIIS
-      # We are using the AWS-ApplyDSCMofs Document
-      Name: AWS-ApplyDSCMofs
+      Name: !Ref ssmnginxinstall
       Targets:
         - Key: InstanceIds
-          Values: [ !Ref WINEC2Instance ]
+          Values: [ !Ref EC2Instance ]
       OutputLocation:
         S3Location: 
           OutputS3BucketName: !Ref SSMAssocLogs
           OutputS3KeyPrefix: 'logs/'
-      # Here we have a Cron Expression that will run this everyday at 23:15 every day
-      ScheduleExpression: "cron(15 23 * * ? *)"
       Parameters:
-        # Here the Mof file resides in a S3 Bucket, notice the way that S3 is being referenced here. 
-        MofsToApply:
-          - !Sub "s3:${SSMBucket}:stdbuild.mof"
-        ServicePath:
-          - default
-        MofOperationMode:
-          - Apply
-        ComplianceType:
-          - Custom:DSCSample
-        ReportBucketName:
-          - ""
-        StatusBucketName:
-          - ""
-        ModuleSourceBucketName:
-          - "NONE"
-        AllowPSGalleryModuleSource:
-          - "True"
-        ProxyUri:
-          - ""
-        RebootBehavior:
-          - "AfterMof"
-        UseComputerNameForReporting:
-          - "False"
-        EnableVerboseLogging:
-          - "False"
-        EnableDebugLogging:
-          - "False"
-        PreRebootScript: 
-          - ""
+        InstanceId:
+          - !Ref EC2Instance
+        AutomationAssumeRole:
+          - ''        
+Outputs:
+  WebServerPublic:
+    Value: !GetAtt 'EC2Instance.PublicDnsName'
+    Description: Public DNS for WebServer
