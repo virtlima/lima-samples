@@ -1,0 +1,304 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Deploy Single Windows Instance Configure with SSM Association"
+Parameters:
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+  SubnetID:
+    Description: ID of a Subnet.
+    Type: AWS::EC2::Subnet::Id
+  DomainDNSName: 
+    Default: "example.com"
+    Description: "Fully qualified domain name (FQDN) of the forest root domain e.g. example.com"
+    Type: "String"
+  S3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: This string can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: alpublic
+    Description: S3 bucket name for the Quick Start assets. This name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  S3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: powershell/
+    Description: S3 key prefix for the Quick Start assets. This prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+  DomainNetBIOSName: 
+    Default: "example"
+    Description: "NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE"
+    Type: "String"
+  DomainMemberSGID:
+    Description: ID of the domain member security group (e.g., sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  AdminSecrets:
+    Description: Arn or Name of a Secrets Manager Secret
+    Type: String
+Resources:
+  DomainJoinAutomation:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Automation
+      Content:
+          schemaVersion: "0.3"
+          description: "Join a Windows Domain"
+          # Role that is utilized to perform the steps within the Automation Document.
+          assumeRole: "{{AutomationAssumeRole}}"
+          # Gathering parameters needed to configure DCs in the Quick Start
+          parameters:
+            InstanceId:
+              description: "ID of the Instance."
+              type: "StringList" 
+            DomainDNSName: 
+              default: "example.com"
+              description: "Fully qualified domain name (FQDN) of the forest root domain e.g. example.com"
+              type: "String"
+            DomainNetBIOSName: 
+              default: "example"
+              description: "NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE"
+              type: "String"
+            AdminSecrets:
+              description: "AWS Secrets Parameter Name that has Password and User name for a domain administrator."
+              type: "String"
+            S3BucketName:
+              default: "aws-quickstart"
+              description: "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+              type: "String"
+            S3KeyPrefix:
+              default: "quickstart-microsoft-sql/"
+              description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+              type: "String"
+            AutomationAssumeRole:
+                default: ""
+                description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+                type: "String" 
+          mainSteps:
+          # This step grabs the Instance IDs for both nodes that will be configured as DCs in the Quick Start and Instance IDs for the for next steps.
+          - name: "cfnInstanceIds"
+            action: aws:executeAwsApi
+            inputs:
+              Service: ec2
+              Api: DescribeInstances
+              Filters:  
+              - Name: "tag:aws:cloudformation:stack-name"
+                Values: [!Sub '${AWS::StackName}']
+              - Name: "instance-state-name"
+                Values: [ "running" ]
+            outputs:
+            - Name: InstanceIds
+              Selector: "$.Reservations..Instances..InstanceId"
+              Type: "StringList"
+          # This step Demonstrates how to run a local script on an Instance. It can be defined or pointed to a local script. 
+          - name: "InstallDSCModules"
+            action: "aws:runCommand"
+            inputs:
+              DocumentName: "AWS-RunRemoteScript"
+              InstanceIds:
+              - "{{cfnInstanceIds.InstanceIds}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName:  !Sub '/ssm/${AWS::StackName}'
+              Parameters:
+                sourceType: "S3"
+                sourceInfo: '{"path": "https://s3.amazonaws.com/{{S3BucketName}}/{{S3KeyPrefix}}install-modules.ps1"}'
+                commandLine: "./install-modules.ps1"
+          - name: "ConfigureLCM"
+            action: "aws:runCommand"
+            inputs:
+              DocumentName: "AWS-RunRemoteScript"
+              InstanceIds:
+              - "{{cfnInstanceIds.InstanceIds}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: !Sub '/ssm/${AWS::StackName}'
+              Parameters:
+                sourceType: "S3"
+                sourceInfo: '{"path": "https://s3.amazonaws.com/{{S3BucketName}}/{{S3KeyPrefix}}LCM-Config.ps1"}'
+                commandLine: "./LCM-Config.ps1"
+          - name: "GenerateDomainJoinMof"
+            action: "aws:runCommand"
+            inputs:
+              DocumentName: "AWS-RunRemoteScript"
+              InstanceIds:
+                - "{{cfnInstanceIds.InstanceIds}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: !Sub '/ssm/${AWS::StackName}'
+              Parameters:
+                sourceType: "S3"
+                sourceInfo: '{"path": "https://s3.amazonaws.com/{{S3BucketName}}/{{S3KeyPrefix}}DomainJoin.ps1"}'
+                commandLine: "./DomainJoin.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}}"
+          - name: "DomainJoin"
+            action: aws:runCommand
+            inputs:
+              DocumentName: AWS-RunPowerShellScript
+              InstanceIds: 
+                - "{{cfnInstanceIds.InstanceIds}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: !Sub '/ssm/${AWS::StackName}'
+              Parameters:
+                commands: 
+                  - |     
+                     function DscStatusCheck () {
+                         $LCMState = (Get-DscLocalConfigurationManager).LCMState
+                         if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
+                             'returning 3010, should continue after reboot'
+                             exit 3010
+                         } else {
+                           'Completed'
+                         }
+                     }
+                     
+                     Start-DscConfiguration 'C:\AWSQuickstart\DomainJoin' -Wait -Verbose -Force
+                     
+                     DscStatusCheck
+  SSMAssocLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+  SSMInstanceRole: 
+    Type : AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                Resource: 
+                  - !Sub 'arn:aws:s3:::aws-ssm-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::aws-windows-downloads-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::amazon-ssm-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::amazon-ssm-packages-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::${AWS::Region}-birdwatcher-prod/*'
+                  - !Sub 'arn:aws:s3:::patch-baseline-snapshot-${AWS::Region}/*'
+                Effect: Allow
+          PolicyName: ssm-custom-s3-policy
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: 
+                  - !Ref 'AdminSecrets'
+          PolicyName: ssm-secrets-policy
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:ListBucket
+                Resource: 
+                  - !Sub 'arn:${AWS::Partition}:s3:::${S3BucketName}/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${S3BucketName}'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SSMAssocLogs}'
+                Effect: Allow
+          PolicyName: s3-instance-bucket-policy
+      Path: /
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "ec2.amazonaws.com"
+            - "ssm.amazonaws.com"
+          Action: "sts:AssumeRole"
+  SSMInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+      - !Ref SSMInstanceRole
+  WINEC2Instance1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: m5.large
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      NetworkInterfaces:
+        - DeleteOnTermination: true
+          DeviceIndex: '0'
+          SubnetId: !Ref 'SubnetID'
+          GroupSet:
+            - !Ref DomainMemberSGID
+      Tags:
+      - Key: "Name"
+        Value: "WindowsBox1"
+  WINEC2Instance2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: m5.large
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      NetworkInterfaces:
+        - DeleteOnTermination: true
+          DeviceIndex: '0'
+          SubnetId: !Ref 'SubnetID'
+          GroupSet:
+            - !Ref DomainMemberSGID
+      Tags:
+      - Key: "Name"
+        Value: "WindowsBox2"
+  DomainAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: DomainJoin
+      # We are using the AWS-ApplyDSCMofs Document
+      Name: !Ref DomainJoinAutomation
+      OutputLocation:
+        S3Location: 
+          OutputS3BucketName: !Ref SSMAssocLogs
+          OutputS3KeyPrefix: 'logs/'
+      Parameters:
+        InstanceId:
+          - !Ref WINEC2Instance1
+          - !Ref WINEC2Instance2
+        DomainDNSName: 
+          - "example.com"
+        DomainNetBIOSName: 
+          - "example"
+        AdminSecrets:
+          - !Ref AdminSecrets
+        S3BucketName:
+          - !Ref S3BucketName
+        S3KeyPrefix:
+          - !Ref S3KeyPrefix
+        AutomationAssumeRole:
+          - 'arn:aws:iam::024357338510:role/EC2-Admin'
+#DomainAssociation:
+#  Type: AWS::SSM::Association
+#  Properties:
+#    AssociationName: DomainJoin
+#    # We are using the AWS-ApplyDSCMofs Document
+#    Name: !Ref DomainJoinAutomation
+#    Targets: 
+#      - Key: "tag:aws:cloudformation:stack-name"
+#        Values: 
+#          - !Sub "${AWS::StackName}"
+#    OutputLocation:
+#      S3Location: 
+#        OutputS3BucketName: !Ref SSMAssocLogs
+#        OutputS3KeyPrefix: 'logs/'
+#    Parameters:
+#      DomainDNSName: 
+#        - "example.com"
+#      DomainNetBIOSName: 
+#        - "example"
+#      AdminSecrets:
+#        - !Ref AdminSecrets
+#      AutomationAssumeRole:
+#        - 'arn:aws:iam::024357338510:role/EC2-Admin'

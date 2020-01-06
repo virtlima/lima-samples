@@ -2,7 +2,8 @@
 # Incoming Parameters for Script, CloudFormation\SSM Parameters being passed in
 param()
 
-# Creating Configuration Data Block that has the Certificate Information for DSC Configuration Processing
+# Creating Configuration Data Block that allows plain test password 
+# for DSC Configuration Processing
 $ConfigurationData = @{
     AllNodes = @(
         @{
@@ -19,7 +20,7 @@ $ConfigurationData = @{
 Configuration DomainJoin {
 
     $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
-    $Credentials = New-Object PSCredential('{ssm:AdminSecretARN}', $ss)
+    $Credentials = New-Object PSCredential('{ssm:/demo/AD/AdminSecretARN}', $ss)
 
     Import-Module -Name PSDesiredStateConfiguration
     Import-Module -Name ComputerManagementDsc
@@ -30,8 +31,8 @@ Configuration DomainJoin {
     Node 'localhost' {
 
         Computer JoinDomain {
-            Name = '{tag:ComputerName}'
-            DomainName = '{ssm:DomainName}'
+            Name = '{tag:Name}'
+            DomainName = '{ssm:/demo/AD/DomainName}'
             Credential = $Credentials
         }
     }

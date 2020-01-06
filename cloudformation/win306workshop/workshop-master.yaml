@@ -77,12 +77,12 @@ Parameters:
   SrcAvailabilityZones:
     Description: 'List of Availability Zones to use for the subnets in the VPC. Note:
       The logical order is preserved and only 2 AZs are used for this deployment.'
-    Default: 'eu-west-1a,eu-west-1b'
+    Default: 'eu-west-2a,eu-west-2b'
     Type: String
   DestAvailabilityZones:
     Description: 'List of Availability Zones to use for the subnets in the VPC. Note:
       The logical order is preserved and only 2 AZs are used for this deployment.'
-    Default: 'eu-west-1a,eu-west-1b'
+    Default: 'eu-west-2a,eu-west-2b'
     Type: String
   DomainAdminPassword:
     Default: Password1

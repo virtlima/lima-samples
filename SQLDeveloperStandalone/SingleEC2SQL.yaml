@@ -1,0 +1,199 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This template deploys two Windows Server Failover Clustering (WSFC) and SQL Server
+  AlwaysOn Availability Group nodes. This template is intended to be installed into
+  an existing VPC that was built using the sample reference architecture titled: "Implementing
+  Active Directory Domain Services in the AWS Cloud" **WARNING** This template creates
+  Amazon EC2 Windows instance and related resources. You will be billed for the AWS
+  resources used if you create a stack from this template. QS(0003)
+Parameters: 
+  DomainMemberSGID:
+    Description: ID of the domain member security group (e.g., sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  KeyPairName:
+    Description: Public/private key pair, which allows you to securely connect to your instance
+      after it launches.
+    Type: AWS::EC2::KeyPair::KeyName
+  PrivateSubnetID:
+    Description: ID of the private subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd).
+    Type: AWS::EC2::Subnet::Id
+  AdminSecrets:
+    Description: "AWS Secrets Parameter Name that has Password and User name for a domain administrator."
+    Type: "String"
+  SQLSecrets:
+    Description: "AWS Secrets Parameter Name that has Password and User name for the SQL Service Account."
+    Type: "String"
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: This string can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Description: S3 bucket name for the Quick Start assets. This name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: quickstart-microsoft-sql/
+    Description: S3 key prefix for the Quick Start assets. This prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+  VPCID:
+    Description: ID of the VPC (e.g., vpc-0343606e).
+    Type: AWS::EC2::VPC::Id
+  WSFCNode1InstanceType:
+    AllowedValues:
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.12xlarge
+    ConstraintDescription: Only Amazon EBS-optimized instance types are allowed.
+    Default: r5.2xlarge
+    Description: Amazon EC2 instance type for the first WSFC node.
+    Type: String
+  WSFCNode1NetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: WSFCNode1
+    Description: NetBIOS name of the first WSFC node (up to 15 characters).
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  WSFCNode2InstanceType:
+    AllowedValues:
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.12xlarge
+    ConstraintDescription: Only Amazon EBS-optimized instance types are allowed.
+    Default: r5.2xlarge
+    Description: Amazon EC2 instance type for the second WSFC node.
+  WS2019FULLBASE:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base'
+Conditions:
+  GovCloudCondition: !Equals
+    - !Ref 'AWS::Region'
+    - us-gov-west-1
+Rules:
+  SubnetsInVPC:
+    Assertions:
+      - Assert: !EachMemberIn
+          - !ValueOfAll
+            - AWS::EC2::Subnet::Id
+            - VpcId
+          - !RefAll 'AWS::EC2::VPC::Id'
+        AssertDescription: All subnets must in the VPC
+Resources:
+  WSFCRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource: 
+                  - !Sub 'arn:${AWS::Partition}:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${QSS3BucketName}'
+                Effect: Allow
+          PolicyName: aws-quick-start-s3-policy
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: 
+                  - !Ref 'SQLSecrets'
+                  - !Ref 'AdminSecrets'
+              - Effect: Allow
+                Action:
+                  - ssm:StartAutomationExecution
+                Resource: '*'
+          PolicyName: QS-MSSQL-SSM
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                Resource: '*'
+          PolicyName: aws-quick-start-cw-policy
+      Path: /
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ReadOnlyAccess'
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - ssm.amazonaws.com
+            Effect: Allow
+        Version: '2012-10-17'
+  WSFCProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref 'WSFCRole'
+      Path: /
+  WSFCNode1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !If
+            - SQLBakedInAMI
+            - !If
+                - 'SQLVersion2017'
+                - !Ref WS2019FULLSQL2017ENT
+                - !Ref WS2019FULLSQL2016SP2ENT
+            - !Ref WS2019FULLBASE
+      IamInstanceProfile: !Ref 'WSFCProfile'
+      InstanceType: !Ref 'WSFCNode1InstanceType'
+      EbsOptimized: 'true'
+      NetworkInterfaces:
+        - DeleteOnTermination: 'true'
+          DeviceIndex: 0
+          SubnetId: !Ref 'PrivateSubnetID'
+          GroupSet:
+            - !Ref 'DomainMemberSGID'
+      Tags:
+        - Key: Name
+          Value: !Ref 'WSFCNode1NetBIOSName'
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '100'
+            VolumeType: gp2
+        - DeviceName: /dev/xvdca
+          VirtualName: ephemeral0
+      KeyName: !Ref 'KeyPairName'
+Outputs:
+  WSFCNode1NetBIOSName:
+    Value: !Ref 'WSFCNode1NetBIOSName'
+    Description: NetBIOS name of the 1st WSFC Node
+  SQLServerAccessSecurityGroupID:
+    Value: !Ref 'SQLServerAccessSecurityGroup'
+    Description: Add instances that require access to SQL to this Security Group

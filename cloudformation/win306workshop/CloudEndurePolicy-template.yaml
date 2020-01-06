@@ -5,14 +5,14 @@ Resources:
   CloudEndureUser:
     Type: AWS::IAM::User
     Properties: 
-      UserName: CloudEndureUser
+      UserName: CEUser
       ManagedPolicyArns: 
-        - !Ref CloudEndurePolicy1
-        - !Ref CloudEndurePolicy2
-  CloudEndurePolicy1:
+        - !Ref CEPolicy1
+        - !Ref CEPolicy2
+  CEPolicy1:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
-        ManagedPolicyName: "CloudEndurePolicy"
+        ManagedPolicyName: "CEPolicy"
         PolicyDocument: 
             Version: "2012-10-17"
             Statement: 
@@ -185,10 +185,10 @@ Resources:
                 Condition: 
                     StringLike: 
                         ec2:ResourceTag/CloudEndure creation time: "*"
-  CloudEndurePolicy2:
+  CEPolicy2:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
-        ManagedPolicyName: "CloudEndurePolicy2"
+        ManagedPolicyName: "CEPolicy2"
         PolicyDocument: 
             Version: "2012-10-17"
             Statement: 

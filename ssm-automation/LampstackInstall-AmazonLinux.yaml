@@ -1,0 +1,192 @@
+# /*
+# * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights       Reserved.
+# *
+# * Permission is hereby granted, free of charge, to any person         obtaining a copy of this
+# * software and associated documentation files (the "Software"), to    deal in the Software
+# * without restriction, including without limitation the rights to     use, copy, modify,
+# * merge, publish, distribute, sublicense, and/or sell copies of the   Software, and to
+# * permit persons to whom the Software is furnished to do so.
+# *
+# * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,     EXPRESS OR IMPLIED,
+# * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,     FITNESS FOR A
+# * PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE       AUTHORS OR COPYRIGHT
+# * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,        WHETHER IN AN ACTION
+# * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN          CONNECTION WITH THE
+# * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# */
+--- 
+schemaVersion: "0.3"
+description: 
+mainSteps: 
+  - name: outputPublicDNS
+    action: aws:runCommand
+    inputs: 
+      Comment: "Outputting public DNS address of EC2 instance"
+      DocumentName: AWS-RunShellScript
+      Targets:
+      - Key: tag:Name
+        Values:
+        - Automation-LAMPStack-AL2
+      Parameters: 
+        commands: 
+          - curl -fsq http://169.254.169.254/latest/meta-data/public-hostname
+        executionTimeout: "3600"
+        workingDirectory: ""
+    description: |-
+      **Output the public DNS address for the launched EC2 instance**
+
+      This step outputs the public DNS address for the EC2 instance launched. You can use this public DNS address to test your instance in subsequent steps. Select the radio button next to the Step execution ID to display the public DNS address of the EC2 instance.
+  - name: installLAMPServer
+    action: aws:runCommand
+    onFailure: step:deleteStackOnError
+    inputs: 
+      Comment: "Installing LAMP Server"
+      DocumentName: AWS-RunShellScript
+      Targets:
+      - Key: tag:Name
+        Values:
+        - Automation-LAMPStack-AL2
+      Parameters: 
+        commands:
+          - sudo yum update -y
+          - sudo amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+          - sudo yum install -y httpd mariadb-server
+          - sudo systemctl start httpd
+          - sudo systemctl enable httpd
+          - sudo systemctl is-enabled httpd
+          - curl -fsq http://169.254.169.254/latest/meta-data/public-hostname
+        executionTimeout: "3600"
+        workingDirectory: ""
+    description: |-
+      **Prepare the LAMP Server**
+
+      This step starts with installing the latest security updates and bug fixes. After updates have been installed, the Apache web server (```httd24```), MySQL (```mysql56-server```), and PHP software packages (```php70``` and ```php70-mysqlnd```) are installed on the instance. The Apache web server service is then configured to start automatically.
+      
+      Once this step is complete, you can test your web server by entering the public DNS address (or the public IP address of your instance) in a web browser. You should see the Apache test page.
+  - name: setFilePermissions
+    action: aws:runCommand
+    onFailure: step:deleteStackOnError
+    inputs: 
+      Comment: "Setting file permissions"
+      DocumentName: AWS-RunShellScript
+      Targets:
+      - Key: tag:Name
+        Values:
+        - Automation-LAMPStack-AL2
+      Parameters: 
+        commands: 
+          - "sudo usermod -a -G apache ec2-user"
+          - "groups ec2-user"
+          - "sudo chown -R ec2-user:apache /var/www"
+          - "sudo chmod 2775 /var/www && find /var/www -type d -exec sudo chmod 2775 {} \\;"
+          - "find /var/www -type f -exec sudo chmod 0664 {} \\;"
+        executionTimeout: "3600"
+    description: |-
+      **Setting File Permissions**
+
+      This step adds your user (```ec2-user```) to the ```apache``` group. After this, the group ownership of ```/var/www``` and its contents is changed to the ```apache``` group. The Automation then adds group write permissions and sets the group ID on future subdirectories for the directory ```/var/www``` and its subdirectories.
+  - name: testLAMPServer
+    action: aws:runCommand
+    inputs: 
+      Comment: "Testing LAMP server with PHP endpoint"
+      DocumentName: AWS-RunShellScript
+      Targets:
+      - Key: tag:Name
+        Values:
+        - Automation-LAMPStack-AL2
+      Parameters: 
+        commands: 
+          - "echo \"<?php phpinfo(); ?>\" > /var/www/html/phpinfo.php"
+        executionTimeout: "3600"
+    description: |-
+      **Testing the LAMP server using the PHP Endpoint**
+
+      This step creates a PHP file, ```phpinfo.php```, in the Apache document root. Following this, you can navigate to the PHP information page by entering the public DNS address (or the public IP address of your instance) in a web browser. You should see the PHP information page.
+  - name: removePHP
+    action: aws:runCommand
+    inputs: 
+      Comment: "Removing PHP file from previous step"
+      DocumentName: AWS-RunShellScript
+      Targets:
+      - Key: tag:Name
+        Values:
+        - Automation-LAMPStack-AL2
+      Parameters: 
+        commands: 
+          - rm /var/www/html/phpinfo.php
+        executionTimeout: "3600"
+    description: |-
+      **Removing the PHP Information page**
+
+      This step removes the ```phpinfo.php``` file created in the previous step. Although this can be useful information, it should not be broadcast to the internet for security reasons.
+  - name: secureDatabase
+    action: aws:runCommand
+    inputs: 
+      Comment: "Securing MySQL DB"
+      DocumentName: AWS-RunShellScript
+      Targets:
+      - Key: tag:Name
+        Values:
+        - Automation-LAMPStack-AL2
+      Parameters: 
+        commands: 
+          - sudo systemctl start mariadb
+          - root=$(tr -cd '[:alnum:]' < /dev/urandom | fold -w30 | head -n1)
+          - mysql --user=root <<_EOF_
+          - UPDATE mysql.user SET Password=PASSWORD('$root') WHERE User='root';
+          - DELETE FROM mysql.user WHERE User='';
+          - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+          - DROP DATABASE IF EXISTS test;
+          - DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+          - FLUSH PRIVILEGES;
+          - _EOF_
+          - az=$(wget -q -O - http://169.254.169.254/latest/meta-data/placement/availability-zone)
+          - aws ssm put-parameter --name "/Tutorials/Passwords/AL2/MySQL/root" --type "SecureString" --value $root --description "MySQL root DB Password" --region "${az::-1}" --overwrite
+          - sudo systemctl enable mariadb
+        executionTimeout: "3600"
+        workingDirectory: ""
+    description: |-
+      **Securing the MySQL Database**
+
+      This step automates the process of setting a root password and removing the insecure features from the MySQL installation. First, the MySQL database is started. Next, a random password is generated for the root user and set within MySQL; this password is stored within AWS Systems Manager Parameter Store. Additionally, the following configuration changes are made to MySQL database installation.
+      
+      * Removing anonymous user accounts
+      * Disabling remote root login
+      * Removing the test database
+      
+      Lastly, the MySQL database is configured to start at every boot.
+  - name: installphpMyAdmin
+    action: aws:runCommand
+    onFailure: step:deleteStackOnError
+    isEnd: true
+    inputs: 
+      Comment: "Installing phpMyAdmin"
+      DocumentName: AWS-RunShellScript
+      Targets:
+      - Key: tag:Name
+        Values:
+        - Automation-LAMPStack-AL2
+      Parameters: 
+        commands: 
+          - sudo yum install php-mbstring -y
+          - sudo systemctl restart httpd
+          - sudo systemctl restart php-fpm
+          - cd /var/www/html
+          - wget https://www.phpmyadmin.net/downloads/phpMyAdmin-latest-all-languages.tar.gz
+          - mkdir phpMyAdmin && tar -xvzf phpMyAdmin-latest-all-languages.tar.gz -C phpMyAdmin --strip-components 1
+          - rm phpMyAdmin-latest-all-languages.tar.gz
+          - sudo systemctl start mariadb
+        executionTimeout: "3600"
+    description: |-
+      **Install phpMyAdmin**
+
+      This step installs phpMyAdmin on your instance, which is a web-based database management tool that you can use to view and edit the MySQL databases. After this step completes, you can access phpMyAdmin by entering the public DNS address (or the public IP address of your instance) followed by a forward slash and the name ```phpMyAdmin``` in a web browser. For example:
+      
+      >http://my.public.dns.amazonaws.com/phpMyAdmin
+      
+      You should see the phpMyAdmin login page. To login, enter ```root``` as the user name and the value of the Parameter Store parameter [```/Tutorials/Passwords/AL2/MySQL/root```](https://console.aws.amazon.com/systems-manager/parameters/%252FTutorials%252FPasswords%252FMySQL%252Froot/description).
+      
+      **Important**
+
+      We do not recommend using phpMyAdmin to access a LAMP server unless you have enabled SSL/TLS in Apache; otherwise, your database administrator password and other data are transmitted insecurely across the internet. For security recommendations from the developers, see [Securing your phpMyAdmin installation](https://docs.phpmyadmin.net/en/latest/setup.html#securing-your-phpmyadmin-installation).
+    isEnd: true

@@ -1,0 +1,118 @@
+---
+schemaVersion: "0.3"
+description: "Join a Windows Domain"
+# Role that is utilized to perform the steps within the Automation Document.
+assumeRole: "{{AutomationAssumeRole}}"
+# Gathering parameters needed to configure DCs in the Quick Start
+parameters:
+  InstanceId:
+    description: "ID of the Instance."
+    type: "StringList" 
+  DomainDNSName: 
+    default: "example.com"
+    description: "Fully qualified domain name (FQDN) of the forest root domain e.g. example.com"
+    type: "String"
+  DomainNetBIOSName: 
+    default: "example"
+    description: "NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE"
+    type: "String"
+  AdminSecrets:
+    description: "AWS Secrets Parameter Name that has Password and User name for a domain administrator."
+    type: "String"
+  S3BucketName:
+    default: "aws-quickstart"
+    description: "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    type: "String"
+  S3KeyPrefix:
+    default: "quickstart-microsoft-sql/"
+    description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    type: "String"
+  AutomationAssumeRole:
+      default: ""
+      description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+      type: "String" 
+mainSteps:
+# This step grabs the Instance IDs for both nodes that will be configured as DCs in the Quick Start and Instance IDs for the for next steps.
+- name: "cfnInstanceIds"
+  action: aws:executeAwsApi
+  inputs:
+    Service: ec2
+    Api: DescribeInstances
+    Filters:  
+    - Name: "tag:aws:cloudformation:stack-name"
+      Values: [!Sub '${AWS::StackName}']
+    - Name: "instance-state-name"
+      Values: [ "running" ]
+  outputs:
+  - Name: InstanceIds
+    Selector: "$.Reservations..Instances..InstanceId"
+    Type: "StringList"
+# This step Demonstrates how to run a local script on an Instance. It can be defined or pointed to a local script. 
+- name: "InstallDSCModules"
+  action: "aws:runCommand"
+  onFailure: "step:signalfailure"
+  nextStep: "dcsLCMConfig"
+  inputs:
+    DocumentName: "AWS-RunRemoteScript"
+    InstanceIds:
+    - "{{cfnInstanceIds.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName:  !Sub '/ssm/${AWS::StackName}'
+    Parameters:
+      sourceType: "S3"
+      sourceInfo: '{"path": "https://s3.amazonaws.com/{{S3BucketName}}/{{S3KeyPrefix}}scripts/install-modules.ps1"}'
+      commandLine: "./install-modules.ps1"
+- name: "ConfigureLCM"
+  action: "aws:runCommand"
+  onFailure: "step:signalfailure"
+  inputs:
+    DocumentName: "AWS-RunRemoteScript"
+    InstanceIds:
+    - "{{cfnInstanceIds.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+    Parameters:
+      sourceType: "S3"
+      sourceInfo: '{"path": "https://s3.amazonaws.com/{{S3BucketName}}/{{S3KeyPrefix}}scripts/LCM-Config.ps1"}'
+      commandLine: "./LCM-Config.ps1"
+- name: "GenerateDomainJoinMof"
+  action: "aws:runCommand"
+  onFailure: "step:signalfailure"
+  inputs:
+    DocumentName: "AWS-RunRemoteScript"
+    InstanceIds:
+      - "{{wsfcnInstanceIds.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: !Ref 'QuickStartLogs'
+    Parameters:
+      sourceType: "S3"
+      sourceInfo: '{"path": "https://s3.amazonaws.com/{{S3BucketName}}/{{S3KeyPrefix}}scripts/DomainJoin.ps1"}'
+      commandLine: "./DomainJoin.ps1 -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -AdminSecret {{AdminSecrets}}"
+- name: "DomainJoin"
+  action: aws:runCommand
+  inputs:
+    DocumentName: AWS-RunPowerShellScript
+    InstanceIds: 
+      - "{{cfnInstanceIds.InstanceIds}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: !Sub '/ssm/${AWS::StackName}'
+    Parameters:
+      commands: 
+        - |     
+           function DscStatusCheck () {
+               $LCMState = (Get-DscLocalConfigurationManager).LCMState
+               if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
+                   'returning 3010, should continue after reboot'
+                   exit 3010
+               } else {
+                 'Completed'
+               }
+           }
+           
+           Start-DscConfiguration 'C:\AWSQuickstart\DomainJoin' -Wait -Verbose -Force
+           
+           DscStatusCheck

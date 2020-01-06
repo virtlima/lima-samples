@@ -3,25 +3,10 @@ Parameters:
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
-  SubnetID:
-    Description: ID of a Subnet.
-    Type: AWS::EC2::Subnet::Id
-  SourceLocation:
-    Description : The CIDR IP address range that can be used to RDP to the EC2 instances
-    Type: String
-    MinLength: 9
-    MaxLength: 18
-    Default: 0.0.0.0/0
-    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
-  VPCID:
-    Description: ID of the target VPC (e.g., vpc-0343606e).
-    Type: AWS::EC2::VPC::Id
 Resources:
   SSMAssocLogs:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Delete
-  ssmnginxinstall:
+  nginxInstallAutomation:
     Type: AWS::SSM::Document
     Properties:
       DocumentType: Automation
@@ -51,7 +36,15 @@ Resources:
             Parameters:
               commands: 
                 - |
+                   #!/bin/bash
                    sudo yum update -y
+                   needs-restarting -r
+                   if [ $? -eq 1 ]
+                   then
+                           exit 194
+                   else
+                           exit 0
+                   fi
         - name: "InstallNginx"
           action: "aws:runCommand"
           inputs:
@@ -78,16 +71,6 @@ Resources:
             commands:
                 - |
                    curl localhost
-  WebServerSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Web Server Security Group
-      VpcId: !Ref 'VPCID'
-      SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 80
-        ToPort: 80
-        CidrIp: !Ref SourceLocation
   SSMInstanceRole: 
     Type : AWS::IAM::Role
     Properties:
@@ -141,14 +124,8 @@ Resources:
     Type: "AWS::EC2::Instance"
     Properties:
       ImageId: !Ref LatestAmiId
-      InstanceType: "t3.small"
+      InstanceType: "t3.medium"
       IamInstanceProfile: !Ref SSMInstanceProfile
-      NetworkInterfaces:
-        - DeleteOnTermination: true
-          DeviceIndex: '0'
-          SubnetId: !Ref 'SubnetID'
-          GroupSet:
-            - !Ref WebServerSG
       Tags:
       - Key: 'nginx'
         Value: 'yes'
@@ -156,9 +133,6 @@ Resources:
     Type: AWS::SSM::Association
     Properties:
       Name: !Ref ssmnginxinstall
-      Targets:
-        - Key: InstanceIds
-          Values: [ !Ref EC2Instance ]
       OutputLocation:
         S3Location: 
           OutputS3BucketName: !Ref SSMAssocLogs
@@ -167,7 +141,20 @@ Resources:
         InstanceId:
           - !Ref EC2Instance
         AutomationAssumeRole:
-          - ''        
+          - 'arn:aws:iam::024357338510:role/EC2-Admin'        
+  ssmb06f50d:
+    Type: "AWS::SSM::Association"
+    Properties:
+        AssociationName: "MyAutomationAssociation"
+        Targets: 
+          - 
+            Key: "tag:TagKey"
+            Values: 
+              - "TagValue"
+        Name: "AWS-PatchInstanceWithRollback"
+        Parameters: 
+            AutomationAssumeRole: 
+              - "arn:aws:iam::024357338510:role/EC2-Admin"
 Outputs:
   WebServerPublic:
     Value: !GetAtt 'EC2Instance.PublicDnsName'
