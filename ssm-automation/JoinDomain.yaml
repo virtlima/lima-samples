@@ -1,0 +1,118 @@
+---
+schemaVersion: "0.3"
+description: "Configure gMSA Group, Account and generate CredSpec file to s3 or Systems Manager parameter store"
+assumeRole: "{{AutomationAssumeRole}}"
+parameters:
+  DomainDNSName:
+    description: "Domain DNS Name used to join Active Directory in order to perform gMSA configuration."
+    type: "String"
+  SecretsName:
+    description: "The Secrets Manager name or ARN that will be used to perform all need domain actions."
+    type: "String"
+  AutomationAssumeRole:
+    default: ""
+    description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+    type: "String" 
+mainSteps:
+  - name: "InstallDSCModules"
+    action: aws:runCommand
+    onFailure: "step:terminateconfigurator"
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - |     
+             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tl
+             "Setting up Powershell Gallery to Install DSC Modules"
+             Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5 -Force
+             Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+             
+             "Installing the needed Powershell DSC modules for this Quick Start"
+             Install-Module -Name ComputerManagementDsc -RequiredVersion 8.4.0
+             Install-Module -Name ActiveDirectoryDsc -RequiredVersion 6.0.1
+  - name: "DomainJoinMof"
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+      Parameters:
+        commands: 
+          - |     
+             [CmdletBinding()]
+             $ConfigurationData = @{
+                 AllNodes = @(
+                     @{
+                         NodeName="*"
+                         PSDscAllowPlainTextPassword = $true
+                         PSDscAllowDomainUser = $true
+                     },
+                     @{
+                         NodeName = 'localhost'
+                     }
+                 )
+             }
+             
+             Configuration JoinDomain {
+                 $ss = ConvertTo-SecureString -String 'QuickStart' -AsPlaintext -Force
+                 $Credentials = New-Object PSCredential('{{SecretsName}}', $ss)
+             
+                 Import-Module -Name PSDesiredStateConfiguration
+                 Import-Module -Name ComputerManagementDsc
+             
+                 Import-DscResource -Module PSDesiredStateConfiguration
+                 Import-DscResource -Module ComputerManagementDsc
+             
+                 Node localhost {
+                     Computer JoinDomain {
+                         Name = '{tag:ComputerName}'
+                         DomainName = "{{DomainDNSName}}"
+                         Credential = $Credentials
+                     }
+             
+                     WindowsFeature RSAT-AD-PowerShell {
+                         Name = 'RSAT-AD-PowerShell'
+                         Ensure = 'Present'
+                     }
+                 }
+             }
+             
+             JoinDomain -OutputPath 'C:\AWS\JoinDomain' -ConfigurationData $ConfigurationData
+  - name: "gMSAConfig"
+    action: aws:runCommand
+    onFailure: "step:terminateconfigurator"
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+      Parameters:
+        MofsToApply:
+          - !Sub "s3:${DSCBucket}:DomainJoin-${AWS::StackName}.mof"
+        ServicePath:
+          - default
+        MofOperationMode:
+          - Apply
+        ComplianceType:
+          - Custom:DomainJoinSample
+        ModuleSourceBucketName:
+          - "NONE"
+        AllowPSGalleryModuleSource:
+          - "False"
+        RebootBehavior:
+          - "AfterMof"
+        UseComputerNameForReporting:
+          - "False"
+        EnableVerboseLogging:
+          - "False"
+        EnableDebugLogging:
+          - "False"
+

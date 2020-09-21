@@ -1,0 +1,430 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Deploy single windows EC2 Instance and join domain with SSM Association"
+Parameters:
+  DomainAdminPassword:
+    AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
+    Description: Password for the domain admin user. Must be at least 8 characters,
+      containing letters, numbers, and symbols.
+    MaxLength: '32'
+    MinLength: '8'
+    NoEcho: 'true'
+    Type: String
+  DomainAdminUser:
+    AllowedPattern: '[a-zA-Z0-9]*'
+    Default: Admin
+    Description: User name for the account that will be used as domain administrator. This is separate from the default "Administrator" account.
+    MaxLength: '25'
+    MinLength: '5'
+    Type: String
+  DomainDNSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
+    Default: example.com
+    Description: Fully qualified domain name (FQDN).
+    MaxLength: '255'
+    MinLength: '2'
+    Type: String
+  DomainMemberSGID:
+    Description: ID of the domain member security group (e.g., sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: EXAMPLE
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier
+      versions of Windows.
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  EC2InstanceType:
+    AllowedValues:
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+    Default: m5.large
+    Description: Amazon EC2 instance type
+    Type: String
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+  SubnetID:
+    Description: ID of a Subnet.
+    Type: AWS::EC2::Subnet::Id
+Resources:
+  DSCBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfter30Days
+            ExpirationInDays: 30
+            Status: Enabled
+            Prefix: 'logs/'
+  WebBucket:
+    Type: AWS::S3::Bucket
+  DomainJoinSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'DomainJoinSecrets-${AWS::StackName}'
+      Description: Secrets to join AD domain
+      SecretString: !Sub '{"username":"${DomainNetBIOSName}\\${DomainAdminUser}","password":"${DomainAdminPassword}"}'
+  LambdaSSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:DeleteObject
+                - s3:ListBucket
+              Resource:
+                - !Sub "arn:aws:s3:::${DSCBucket}"
+                - !Sub "arn:aws:s3:::${DSCBucket}/*"
+                - !Sub "arn:aws:s3:::${WebBucket}"
+                - !Sub "arn:aws:s3:::${WebBucket}/*"
+          PolicyName: write-mof-s3
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+  WriteMOFFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import json
+          import logging
+          import threading
+          import boto3
+          import cfnresponse
+          def create_object(bucket, body, key):
+              s3 = boto3.client('s3')
+              s3.put_object(Body=body,Bucket=bucket, Key=key)
+          def delete_objects(bucket):
+              s3 = boto3.client('s3')
+              objects = s3.list_objects_v2(
+                Bucket=bucket)
+              for key in objects['Contents']:
+                 s3.delete_object(
+                    Bucket=bucket,
+                    Key=key['Key'])
+          def timeout(event, context):
+              logging.error('Execution is about to time out, sending failure response to CloudFormation')
+              cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)
+          def handler(event, context):
+              # make sure we send a failure to CloudFormation if the function is going to timeout
+              timer = threading.Timer((context.get_remaining_time_in_millis() / 1000.00) - 0.5, timeout, args=[event, context])
+              timer.start()
+              print('Received event: %s' % json.dumps(event))
+              status = cfnresponse.SUCCESS
+              try:
+                  bucket = event['ResourceProperties']['Bucket']
+                  body = event['ResourceProperties']['Body']
+                  key = event['ResourceProperties']['Key']
+                  if event['RequestType'] == 'Delete':
+                      delete_objects(bucket)
+                  else:
+                      create_object(bucket, body, key)
+              except Exception as e:
+                  logging.error('Exception: %s' % e, exc_info=True)
+                  status = cfnresponse.FAILED
+              finally:
+                  timer.cancel()
+                  cfnresponse.send(event, context, status, {}, None)
+      Handler: index.handler
+      Role: !GetAtt LambdaSSMRole.Arn
+      Runtime: python3.7
+      Timeout: 240
+  WriteDomainJoinMOF:
+    Type: Custom::WriteMOFFile
+    Properties:
+      ServiceToken: !GetAtt WriteMOFFunction.Arn
+      Bucket: !Ref DSCBucket
+      Key: !Sub "DomainJoinIIS-${AWS::StackName}.mof"
+      Body: !Sub |
+        /*
+        @TargetNode='localhost'
+        */
+        instance of MSFT_Credential as $MSFT_Credential1ref
+        {
+        Password = "stringdoesntmatter";
+         UserName = "${DomainJoinSecrets}";
+        
+        };
+        instance of DSC_Computer as $DSC_Computer1ref
+        {
+        ResourceID = "[Computer]JoinDomain";
+         Credential = $MSFT_Credential1ref;
+         DomainName = "{tag:DomainToJoin}";
+         Name = "{tag:Name}";
+         ModuleName = "ComputerManagementDsc";
+         ModuleVersion = "8.0.0";
+         ConfigurationName = "DomainJoin";
+        };
+        instance of MSFT_RoleResource as $MSFT_RoleResource1ref
+        {
+        ResourceID = "[WindowsFeature]WebServer";
+         Ensure = "Present";
+         Name = "Web-Server";
+         ModuleName = "PSDesiredStateConfiguration";
+        ModuleVersion = "1.0";
+         ConfigurationName = "DomainJoin";
+        };
+        instance of MSFT_ScriptResource as $MSFT_ScriptResource1ref
+        {
+        ResourceID = "[Script]GetWebFiles";
+         GetScript = "\n                $filelocation = \"c:\\webfiles\\index.htm\"\n                Return @{Result = [string]$(test-path $filelocation)}\n            ";
+         TestScript = "\n                $filelocation = \"c:\\webfiles\\index.htm\"\n                if((test-path $filelocation) -eq $false) {\n                    Write-Verbose 'Files need to be Downloaded'\n                    Return $false\n                } else {\n                    Write-Verbose 'Files are present locally'\n                    Return $true\n                }\n            ";
+         SetScript = "\n                Copy-S3Object -Bucket ${WebBucket} -key index.htm -LocalFile c:\\inetpub\\wwwroot\\index.htm\n            ";
+         ModuleName = "PSDesiredStateConfiguration";
+        ModuleVersion = "1.0";
+        DependsOn = {
+            "[WindowsFeature]WebServer"};
+         ConfigurationName = "DomainJoin";
+        };
+        instance of OMI_ConfigurationDocument
+                            {
+         Version="2.0.0";
+                                MinimumCompatibleVersion = "1.0.0";
+                                CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+                                Name="DomainJoin";
+                            };
+  WriteHtmlFile:
+    Type: Custom::WriteMOFFile
+    Properties:
+      ServiceToken: !GetAtt WriteMOFFunction.Arn
+      Bucket: !Ref WebBucket
+      Key: "index.htm"
+      Body: !Sub |
+        <html>
+          <head>
+            <title>AWS re:Invent 2020 Test Page</title>
+          </head>
+          <style>div {text-align: center;}</style>
+          <body bgcolor=white>
+            <table border="0" cellpadding="10">
+              <tr>
+                <td>
+                  <img src="https://s3.amazonaws.com/aws-quickstart/static/images/logos/microsoft-logo-cards.png">
+                </td>
+                <td>
+                  <h1>This is a Test Page to show that an IIS Server is up and ready to roll on AWS!</h1>
+                </td>
+                <td>
+                  <img src="https://s3.amazonaws.com/aws-quickstart/static/images/logos/microsoft-logo-cards.png">
+                </td>
+              </tr>
+            </table>
+            <div><a href="https://aws.amazon.com/what-is-cloud-computing"><img src="https://d0.awsstatic.com/logos/powered-by-aws.png" alt="Powered by AWS Cloud Computing"></a></div>
+          </body>
+        </html>
+  SSMInstanceRole: 
+    Type : AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                Resource: 
+                  - !Sub 'arn:aws:s3:::aws-ssm-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::aws-windows-downloads-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::amazon-ssm-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::amazon-ssm-packages-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::${AWS::Region}-birdwatcher-prod/*'
+                  - !Sub 'arn:aws:s3:::patch-baseline-snapshot-${AWS::Region}/*'
+                Effect: Allow
+          PolicyName: ssm-custom-s3-policy
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: 
+                  - !Ref 'DomainJoinSecrets'
+          PolicyName: ssm-secrets-policy
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateTags
+                Resource: !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+          PolicyName: qs-tags-Policy
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:ListBucket
+                Resource: 
+                  - !Sub "arn:aws:s3:::${DSCBucket}"
+                  - !Sub "arn:aws:s3:::${DSCBucket}/*"
+                  - !Sub "arn:aws:s3:::${WebBucket}"
+                  - !Sub "arn:aws:s3:::${WebBucket}/*"
+                Effect: Allow
+          PolicyName: s3-instance-bucket-policy
+      Path: /
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ReadOnlyAccess'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "ec2.amazonaws.com"
+            - "ssm.amazonaws.com"
+          Action: "sts:AssumeRole"
+  SSMInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+      - !Ref SSMInstanceRole
+  WINEC2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref EC2InstanceType
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      NetworkInterfaces:
+        - DeleteOnTermination: true
+          DeviceIndex: '0'
+          SubnetId: !Ref 'SubnetID'
+          GroupSet:
+            - !Ref DomainMemberSGID
+      Tags:
+      - Key: "DomainToJoin"
+        Value: !Ref "DomainDNSName"
+      - Key: "CloudWatchAgent"
+        Value: "Yes"
+      - Key: "CloudWatchConfig"
+        Value: "IIS-Windows"
+      UserData: !Base64
+        Fn::Join:
+          - ''
+          - - "<powershell>\n"
+            - 'Import-Module AWSPowerShell'
+            - "\n"
+            - '$Nametag = New-Object Amazon.EC2.Model.Tag'
+            - "\n"
+            - '$Nametag.Key = "Name"'
+            - "\n"
+            - '$Nametag.Value = $env:COMPUTERNAME'
+            - "\n"
+            - '$instanceid = (Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/meta-data/instance-id)'
+            - "\n"
+            - 'New-EC2Tag -Resource $instanceid -Tag $Nametag'
+            - "\n"
+            - "</powershell>\n"
+  JoinDomainAssociation:
+    DependsOn: 
+      - WINEC2Instance
+      - WriteDomainJoinMOF
+      - WriteHtmlFile
+    Type: AWS::SSM::Association
+    Properties:
+      WaitForSuccessTimeoutSeconds: 600
+      Name: AWS-ApplyDSCMofs
+      Targets:
+        - Key: "tag:DomainToJoin"
+          Values:
+           - !Ref "DomainDNSName"
+      OutputLocation:
+        S3Location: 
+          OutputS3BucketName: !Ref DSCBucket
+          OutputS3KeyPrefix: 'logs/'
+      ScheduleExpression: "cron(30 23 * * ? *)"
+      MaxErrors: 1
+      MaxConcurrency: 1
+      Parameters:
+        MofsToApply:
+          - !Sub "s3:${DSCBucket}:DomainJoinIIS-${AWS::StackName}.mof"
+        ServicePath:
+          - default
+        MofOperationMode:
+          - Apply
+        ComplianceType:
+          - Custom:DomainJoinSample
+        ModuleSourceBucketName:
+          - "NONE"
+        AllowPSGalleryModuleSource:
+          - "True"
+        RebootBehavior:
+          - "AfterMof"
+        UseComputerNameForReporting:
+          - "False"
+        EnableVerboseLogging:
+          - "False"
+        EnableDebugLogging:
+          - "False"
+  CloudWatchAgentAssociation:
+    DependsOn: 
+      - WINEC2Instance
+    Type: AWS::SSM::Association
+    Properties:
+      WaitForSuccessTimeoutSeconds: 300
+      Name: AWS-ConfigureAWSPackage
+      Targets:
+        - Key: InstanceIds
+          Values: [ !Ref WINEC2Instance ]
+      OutputLocation:
+        S3Location: 
+          OutputS3BucketName: !Ref DSCBucket
+          OutputS3KeyPrefix: 'logs/'
+      ScheduleExpression: "cron(0 0 */1 * * ? *)"
+      MaxErrors: 1
+      MaxConcurrency: 1
+      Parameters:
+        action:
+          - "Install"
+        installationType:
+          - "Uninstall and reinstall"
+        name:
+          - "AmazonCloudWatchAgent"
+        version:
+          - "latest"
+  CloudWatchConfigAssociation:
+    DependsOn: 
+      - CloudWatchAgentAssociation
+    Type: AWS::SSM::Association
+    Properties:
+      WaitForSuccessTimeoutSeconds: 300
+      Name: AWS-ConfigureCloudWatch
+      Targets:
+        - Key: InstanceIds
+          Values: [ !Ref WINEC2Instance ]
+      OutputLocation:
+        S3Location: 
+          OutputS3BucketName: !Ref DSCBucket
+          OutputS3KeyPrefix: 'logs/'
+      ScheduleExpression: "cron(0 0 */1 * * ? *)"
+      MaxErrors: 1
+      MaxConcurrency: 1
+      Parameters:
+        status:
+          - "Enabled"
+        properties:
+          - '{ "logs": { "logs_collected": { "files": { "collect_list": [ { "file_path": "C:\\inetpub\\logs\\LogFiles\\W3SVC1\\*.log", "log_group_name": "IISLogs", "log_stream_name": "{instance_id}" } ] }, "windows_events": { "collect_list": [ { "event_format": "xml", "event_levels": [ "VERBOSE", "INFORMATION", "WARNING", "ERROR", "CRITICAL" ], "event_name": "System", "log_group_name": "System", "log_stream_name": "{instance_id}" } ] } } }, "metrics": { "metrics_collected": { "LogicalDisk": { "measurement": [ "% Free Space" ], "metrics_collection_interval": 60, "resources": [ "*" ] }, "Memory": { "measurement": [ "% Committed Bytes In Use" ], "metrics_collection_interval": 60 }, "statsd": { "metrics_aggregation_interval": 60, "metrics_collection_interval": 10, "service_address": ":8125" } } } }'
