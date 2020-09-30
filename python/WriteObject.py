@@ -7,10 +7,15 @@ def create_object(bucket, body, key):
     s3 = boto3.client('s3')
     s3.put_object(Body=body,Bucket=bucket, Key=key)
 def delete_objects(bucket, key):
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket('bucket')
-    bucket.objects.filter(Prefix="logs/").delete()
-    bucket.delete_objects(Delete={'Objects':[{'Key':key}]})
+    s3 = boto3.client('s3')
+    objects = s3.list_objects_v2(Bucket=bucket)
+    logsobjects = s3.list_objects_v2(Bucket=bucket, Prefix='logs')
+    if logobjects['KeyCount'] != 0:
+      for object in logsobjects['Contents']:
+         s3.delete_object(Bucket=bucket, Key=object['Key'])
+         s3.delete_object(Bucket=bucket, Key=key)
+    else:
+      s3.delete_object(Bucket=bucket, Key=key)
 def timeout(event, context):
     logging.error('Execution is about to time out, sending failure response to CloudFormation')
     cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)

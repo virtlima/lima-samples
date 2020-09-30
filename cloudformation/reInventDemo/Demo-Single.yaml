@@ -1,46 +1,38 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "Deploy single windows EC2 Instance and join domain with SSM Association"
 Parameters:
-  LaunchTemplateSecurityGroupParameter:
-    Type: List<AWS::EC2::SecurityGroup::Id>
-    Description: Select EC2 security group to assign to the launch template.
-  VpcIdParameter:
-    Type: List<AWS::EC2::VPC::Id>
-    Description: List of Virtual Private Cloud (VPC) Ids in your account.
-  ELBSchemeParameter:
+  DomainAdminPassword:
+    AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
+    Description: Password for the domain admin user. Must be at least 8 characters,
+      containing letters, numbers, and symbols.
+    MaxLength: '32'
+    MinLength: '8'
+    NoEcho: 'true'
     Type: String
-    Default: internet-facing
-    AllowedValues:
-      - internet-facing
-      - internal
-    Description: Select whether the ELB is internet-facing (public) or internal (private).
-  ELBSubnetParameter:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Select EC2 subnets to assign to the ELB.
-  ELBSecurityGroupParameter:
-    Type: List<AWS::EC2::SecurityGroup::Id>
-    Description: Select EC2 security group to assign to the ELB.
-  ASGMinSizeParameter:
-    Type: Number
-    Description: Minimum instance size for the Auto Scaling Group.
-  ASGMaxSizeParameter:
-    Type: Number
-    Description: Maximum instance size for the Auto Scaling Group.
-  ASGDesiredCapacityParameter:
-    Type: Number
-    Description: Desired capacity instance size for the Auto Scaling Group.
-  ASGSubnetParameter:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Select EC2 subnets to assign to the Auto Scaling Group.
-  DomainJoinSecrets:
-    Description: "The Secrets Manager name or ARN that will be used to perform all need domain actions."
-    Type: "String"
+  DomainAdminUser:
+    AllowedPattern: '[a-zA-Z0-9]*'
+    Default: Admin
+    Description: User name for the account that will be used as domain administrator. This is separate from the default "Administrator" account.
+    MaxLength: '25'
+    MinLength: '5'
+    Type: String
   DomainDNSName:
     AllowedPattern: '[a-zA-Z0-9\-]+\..+'
     Default: example.com
     Description: Fully qualified domain name (FQDN).
     MaxLength: '255'
     MinLength: '2'
+    Type: String
+  DomainMemberSGID:
+    Description: ID of the domain member security group (e.g., sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: EXAMPLE
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier
+      versions of Windows.
+    MaxLength: '15'
+    MinLength: '1'
     Type: String
   EC2InstanceType:
     AllowedValues:
@@ -59,12 +51,26 @@ Parameters:
     Type: String
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-Base"
-  SSMInstanceRoleArn:
-    Type: String
-  SSMInstanceProfileName:
-    Type: String
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+  SubnetID:
+    Description: ID of a Subnet.
+    Type: AWS::EC2::Subnet::Id
 Resources:
+  ConfigBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfter30Days
+            ExpirationInDays: 30
+            Status: Enabled
+            Prefix: 'logs/'
+  DomainJoinSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'DomainJoinSecrets-${AWS::StackName}'
+      Description: Secrets to join AD domain
+      SecretString: !Sub '{"username":"${DomainNetBIOSName}\\${DomainAdminUser}","password":"${DomainAdminPassword}"}'
   LambdaSSMRole:
     Type: AWS::IAM::Role
     Properties:
@@ -282,103 +288,45 @@ Resources:
     Properties:
       Roles:
       - !Ref SSMInstanceRole
-  EC2LaunchTemplateResource:
-    Type: AWS::EC2::LaunchTemplate
-    DeletionPolicy: Delete
+  WINEC2Instance:
+    Type: "AWS::EC2::Instance"
     Properties:
-      LaunchTemplateData:
-        InstanceType: !Ref 'EC2InstanceType'
-        ImageId: !Ref 'LatestAmiId'
-        SecurityGroupIds:
-          - !Select
-            - '0'
-            - !Ref 'LaunchTemplateSecurityGroupParameter'
-        IamInstanceProfile:
-          Arn: !GetAtt 'SSMInstanceProfile.Arn'
-        TagSpecifications:
-           - 
-            ResourceType: 'instance'
-            Tags:
-              - Key: "DomainToJoin"
-                Value: !Ref "DomainDNSName"
-              - Key: "CloudWatchAgent"
-                Value: "Yes"
-              - Key: "CloudWatchConfig"
-                Value: "IIS-Windows"
-        UserData: !Base64
-          Fn::Join:
-            - ''
-            - - "<powershell>\n"
-              - 'Import-Module AWSPowerShell'
-              - "\n"
-              - '$instanceid = (Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/meta-data/instance-id)'
-              - "\n"
-              - 'New-EC2Tag -Resource $instanceId -Tag @{Key="Name";Value=$env:COMPUTERNAME}'
-              - "\n"
-              - "</powershell>\n"
-  ALBResource:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Scheme: !Ref 'ELBSchemeParameter'
-      Subnets:
-        - !Select
-          - '0'
-          - !Ref 'ELBSubnetParameter'
-        - !Select
-          - '1'
-          - !Ref 'ELBSubnetParameter'
-      SecurityGroups:
-        - !Select
-          - '0'
-          - !Ref 'ELBSecurityGroupParameter'
-  ALBTargetGroupResource:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Port: 80
-      Protocol: HTTP
-      VpcId: !Select
-        - '0'
-        - !Ref 'VpcIdParameter'
-      HealthyThresholdCount: 5
-      HealthCheckTimeoutSeconds: 120
-      HealthCheckIntervalSeconds: 300
-      UnhealthyThresholdCount: 10
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: '60'
-  ALBListenerResource:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref 'ALBResource'
-      Port: 80
-      Protocol: HTTP
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref 'ALBTargetGroupResource'
-  ASGResource:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    Properties:
-      MinSize: !Ref 'ASGMinSizeParameter'
-      MaxSize: !Ref 'ASGMaxSizeParameter'
-      DesiredCapacity: !Ref 'ASGDesiredCapacityParameter'
-      HealthCheckType: ELB
-      HealthCheckGracePeriod: 60
-      Cooldown: '30'
-      LaunchTemplate:
-        LaunchTemplateId: !Ref 'EC2LaunchTemplateResource'
-        Version: !GetAtt 'EC2LaunchTemplateResource.LatestVersionNumber'
-      VPCZoneIdentifier:
-        - !Select
-          - '0'
-          - !Ref 'ASGSubnetParameter'
-        - !Select
-          - '1'
-          - !Ref 'ASGSubnetParameter'
-      TargetGroupARNs:
-        - !Ref 'ALBTargetGroupResource'
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref EC2InstanceType
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      NetworkInterfaces:
+        - DeleteOnTermination: true
+          DeviceIndex: '0'
+          SubnetId: !Ref 'SubnetID'
+          GroupSet:
+            - !Ref DomainMemberSGID
+      Tags:
+      - Key: "DomainToJoin"
+        Value: !Ref "DomainDNSName"
+      - Key: "CloudWatchAgent"
+        Value: "Yes"
+      - Key: "CloudWatchConfig"
+        Value: "IIS-Windows"
+      UserData: !Base64
+        Fn::Join:
+          - ''
+          - - "<powershell>\n"
+            - 'Import-Module AWSPowerShell'
+            - "\n"
+            - '$Nametag = New-Object Amazon.EC2.Model.Tag'
+            - "\n"
+            - '$Nametag.Key = "Name"'
+            - "\n"
+            - '$Nametag.Value = $env:COMPUTERNAME'
+            - "\n"
+            - '$instanceid = (Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/meta-data/instance-id)'
+            - "\n"
+            - 'New-EC2Tag -Resource $instanceid -Tag $Nametag'
+            - "\n"
+            - "</powershell>\n"
   JoinDomainAssociation:
     DependsOn: 
-      - ASGResource
+      - WINEC2Instance
       - WriteDomainJoinMOF
       - WriteHtmlFile
     Type: AWS::SSM::Association
@@ -394,8 +342,8 @@ Resources:
           OutputS3BucketName: !Ref ConfigBucket
           OutputS3KeyPrefix: 'logs/'
       ScheduleExpression: "cron(30 23 * * ? *)"
-      MaxErrors: '1'
-      MaxConcurrency: '1'
+      MaxErrors: 1
+      MaxConcurrency: 1
       Parameters:
         MofsToApply:
           - !Sub "s3:${ConfigBucket}:DomainJoinIIS-${AWS::StackName}.mof"
@@ -418,21 +366,20 @@ Resources:
         EnableDebugLogging:
           - "False"
   CloudWatchAgentAssociation:
-    DependsOn: 
-      - ASGResource
     Type: AWS::SSM::Association
     Properties:
       WaitForSuccessTimeoutSeconds: 300
       Name: AWS-ConfigureAWSPackage
       Targets:
-        - Key: "tag:CloudWatchAgent"
-          Values: ["Yes"]
+        - Key: InstanceIds
+          Values: [ !Ref WINEC2Instance ]
       OutputLocation:
         S3Location: 
           OutputS3BucketName: !Ref ConfigBucket
           OutputS3KeyPrefix: 'logs/'
-      MaxErrors: '1'
-      MaxConcurrency: '1'
+      ScheduleExpression: "cron(0 0 */1 * * ? *)"
+      MaxErrors: 1
+      MaxConcurrency: 1
       Parameters:
         action:
           - "Install"
@@ -448,24 +395,19 @@ Resources:
     Type: AWS::SSM::Association
     Properties:
       WaitForSuccessTimeoutSeconds: 300
-      Name: AmazonCloudWatch-ManageAgent
+      Name: AWS-ConfigureCloudWatch
       Targets:
-        - Key: "tag:CloudWatchConfig"
-          Values: ["IIS-Windows"]
+        - Key: InstanceIds
+          Values: [ !Ref WINEC2Instance ]
       OutputLocation:
         S3Location: 
           OutputS3BucketName: !Ref ConfigBucket
           OutputS3KeyPrefix: 'logs/'
-      MaxErrors: '1'
-      MaxConcurrency: '1'
+      ScheduleExpression: "cron(0 0 */1 * * ? *)"
+      MaxErrors: 1
+      MaxConcurrency: 1
       Parameters:
-        action:
-          - "configure"
-        mode:
-          - 'ec2'
-        optionalConfigurationLocation:
-          - 'AmazonCloudWatch-windows'
-        optionalConfigurationSource:
-          - 'ssm'
-        optionalRestart:
-          - 'yes'
+        status:
+          - "Enabled"
+        properties:
+          - '{ "logs": { "logs_collected": { "files": { "collect_list": [ { "file_path": "C:\\inetpub\\logs\\LogFiles\\W3SVC1\\*.log", "log_group_name": "IISLogs", "log_stream_name": "{instance_id}" } ] }, "windows_events": { "collect_list": [ { "event_format": "xml", "event_levels": [ "VERBOSE", "INFORMATION", "WARNING", "ERROR", "CRITICAL" ], "event_name": "System", "log_group_name": "System", "log_stream_name": "{instance_id}" } ] } } }, "metrics": { "metrics_collected": { "LogicalDisk": { "measurement": [ "% Free Space" ], "metrics_collection_interval": 60, "resources": [ "*" ] }, "Memory": { "measurement": [ "% Committed Bytes In Use" ], "metrics_collection_interval": 60 }, "statsd": { "metrics_aggregation_interval": 60, "metrics_collection_interval": 10, "service_address": ":8125" } } } }'

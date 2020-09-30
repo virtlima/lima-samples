@@ -1,0 +1,488 @@
+---
+schemaVersion: "0.3"
+description: "Configure gMSA Group, Account and generate CredSpec file to s3 or Systems Manager parameter store"
+assumeRole: "{{AutomationAssumeRole}}"
+parameters:
+  InstanceId:
+    description: "Id of Instance if one exist."
+    type: "String"
+  CredSpecBucket:
+    description: "S3 bucket where the CredSpec File will be saved."
+    type: "String"
+  DomainDNSName:
+    description: "Domain DNS Name used to join Active Directory in order to perform gMSA configuration."
+    type: "String"
+  ServiceAccount:
+    default: "gMSASample"
+    description: "Name of the Service Account that will be created"
+    type: "String"
+  SecretsName:
+    description: "The Secrets Manager name or ARN that will be used to perform all need domain actions."
+    type: "String"
+  InstanceProfile:
+    description: "Instance profile that has a role that allows EC2 Instance to grab secrets from Secrets Manager 
+       and interact with AWS Systems Manager"
+    type: "String"
+  SecurityGroupId:
+    description: "Security Group that gives the ability to communicate with Active Directory"
+    type: "String"
+  SubnetId:
+    description: "Subnet ID that give the ability to communicate to Active Directoy"
+    type: "String"
+  LatestAmi:
+    type: String
+    default: >-
+      {{ssm:/aws/service/ami-windows-latest/Windows_Server-1909-English-Core-Base}}
+    description: "The latest Windows Server 2019 Core AMI queried from the public parameter."
+  AutomationAssumeRole:
+    default: ""
+    description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+    type: "String" 
+mainSteps:
+#Conditional branching lets you specify a different workflow based on a parametere or output of a previous step. In this case
+# If an Instance Id is specified it will jump to those steps, otherwise it will launch a new instance with detail provided. 
+- name: InstanceIdBranch
+  action: aws:branch
+  inputs:
+    Choices:
+    - Variable: "{{InstanceId}}"
+      StringEquals: ""
+      NextStep: launchInstance
+    - Not:
+        Variable: "{{InstanceId}}"
+        StringEquals: ""
+      NextStep: existinggMSAConfigurator
+# There are man action you can take using AWS Systems Manager, here we are using the launch instance which will launch
+# and poll until the instance is running, then it will move on to the next step. 
+  - name: launchInstance
+    action: aws:runInstances
+    maxAttempts: 3
+    timeoutSeconds: 1200
+    onFailure: Abort
+    inputs:
+      ImageId: '{{LatestAmi}}'
+      InstanceType: t3a.small
+      MinInstanceCount: 1
+      MaxInstanceCount: 1
+      IamInstanceProfileName: "{{InstanceProfile}}"
+      SecurityGroupIds: 
+        - "{{SecurityGroupId}}"
+      SubnetId: "{{SubnetId}}"
+      TagSpecifications:
+      - ResourceType: instance
+       Tags:
+        - Key: LaunchedBy
+          Value: SSMAutomation
+        - Key: Category
+          Value: gMSASetup
+# Using AWS Systems Manager commands can be run against any instance. Here we are using the AWS-RunPowerShellScript Run Command Document
+# If I had a MOF file already on S3 I could use the AWS-ApplyDscMof Document which would just process the MOF file on the instance.  
+  - name: "InstallDSCModules"
+    action: aws:runCommand
+    onFailure: "step:terminateconfigurator"
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - |     
+             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tl
+             "Setting up Powershell Gallery to Install DSC Modules"
+             Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5 -Force
+             Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+             
+             "Installing the needed Powershell DSC modules for this Quick Start"
+             Install-Module -Name ActiveDirectoryDsc
+             Install-Module ComputerManagementDsc
+             Install-Module CredentialSpec
+# Steps will execute one after the other in a linear fashion unless we specify a condition or on the onFailure action, each steps onFailure
+# terminates the launched instance. 
+  - name: "LCMConfig"
+    action: aws:runCommand
+    onFailure: "step:terminateconfigurator"
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - |     
+              [DSCLocalConfigurationManager()]
+              configuration LCMConfig
+              {
+                  Node 'localhost' {
+                      Settings {
+                          RefreshMode = 'Push'
+                          ActionAfterReboot = 'StopConfiguration'                      
+                          RebootNodeIfNeeded = $false
+                      }
+                  }
+              }
+              #Generates MOF File for LCM
+              LCMConfig -OutputPath 'C:\AWSQuickstart\LCMConfig'
+                  
+              # Sets LCM Configuration to MOF generated in previous command
+              Set-DscLocalConfigurationManager -Path 'C:\AWSQuickstart\LCMConfig' 
+  - name: "gMSAConfigurator"
+    action: aws:runCommand
+    onFailure: "step:terminateconfigurator"
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - |     
+             [CmdletBinding()]
+             $ConfigurationData = @{
+                 AllNodes = @(
+                     @{
+                         NodeName="*"
+                         PSDscAllowPlainTextPassword = $true
+                         PSDscAllowDomainUser = $true
+                     },
+                     @{
+                         NodeName = 'localhost'
+                     }
+                 )
+             }
+             
+             Configuration gMSASetup {
+             
+                 # Getting Password from Secrets Manager for AD User with permissions
+                 $ADAdminPassword = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId "{{SecretsName}}").SecretString
+                 # Creating Credential Object for AD User
+                 $Credentials = (New-Object PSCredential($ADAdminPassword.UserName,(ConvertTo-SecureString $ADAdminPassword.Password -AsPlainText -Force)))
+             
+                 Import-Module -Name PSDesiredStateConfiguration
+                 Import-Module -Name ComputerManagementDsc
+                 Import-Module -Name ActiveDirectoryDsc
+             
+                 Import-DscResource -Module ActiveDirectoryDsc
+                 Import-DscResource -Module PSDesiredStateConfiguration
+                 Import-DscResource -Module ComputerManagementDsc
+             
+                 Node localhost {
+                     Computer JoinDomain {
+                         Name = 'gMSAConfig'
+                         DomainName = "{{DomainDNSName}}"
+                         Credential = $Credentials
+                     }
+             
+                     WindowsFeature RSAT-AD-PowerShell {
+                         Name = 'RSAT-AD-PowerShell'
+                         Ensure = 'Present'
+                     }
+             
+                     ADGroup 'ECSgMSAGroup'{
+                         GroupName   = "{{ServiceAccount}}"
+                         GroupScope  = 'DomainLocal'
+                         Category    = 'Security'
+                         Ensure      = 'Present'
+                         MembersToInclude = 'gMSAConfig$'
+                         Credential = $Credentials
+                         DependsOn  = '[Computer]JoinDomain'
+                     }
+             
+                     ADManagedServiceAccount 'ECSgMSA' {
+                         Ensure                    = 'Present'
+                         ServiceAccountName        = "{{ServiceAccount}}"
+                         AccountType               = 'Group'
+                         ManagedPasswordPrincipals = "{{ServiceAccount}}"
+                         Credential = $Credentials
+                         DependsOn = "[ADGroup]ECSgMSAGroup"
+                     }
+             
+                     PendingReboot BeforeExchangeInstall {
+                         Name       = 'BeforeCredSpecSetup'
+                         DependsOn  = '[ADGroup]ECSgMSAGroup'
+                     }
+             
+                     Script 'S3CredSpec' {
+                         GetScript = {
+                             $S3key = "{{ServiceAccount}}" + '.json'
+                             Return @{Result = [string]$(Get-S3Object -BucketName "{{CredSpecBucket}}" -Key $S3key)}
+                         }
+                         TestScript = {
+                             $S3key = "{{ServiceAccount}}" + '.json'
+                             $S3CredSpec = Get-S3Object -BucketName "{{CredSpecBucket}}" -Key $S3key
+                             if($S3CredSpec.Key -ne $S3key) {
+                                 Write-Verbose 'Service Account does not have a CredSpec on S3'
+                                 Return $false
+                             } else {
+                                 Write-Verbose 'Service Account has a CredSpec on S3'
+                                 Return $true
+                             }
+                         }
+                         SetScript = {
+                             $S3key = "{{ServiceAccount}}" + '.json'
+                             $filepath = 'C:\AWSQuickstart\' + "{{ServiceAccount}}" +'.json'
+                             if((test-path $filepath) -eq $false) {
+                                 New-CredentialSpec -AccountName "{{ServiceAccount}}" -Path $filepath
+                                 Write-S3Object -BucketName "{{CredSpecBucket}}" -Key $S3key -File $filepath
+                             } else {
+                                 Write-S3Object -BucketName "{{CredSpecBucket}}" -Key $S3key -File $filepath
+                             }
+                         }
+                     }
+                 }
+             }
+             
+             gMSASetup -OutputPath 'C:\AWSQuickstart\gMSASetup' -ConfigurationData $ConfigurationData
+  - name: "gMSAConfig"
+    action: aws:runCommand
+    onFailure: "step:terminateconfigurator"
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - | 
+             function DscStatusCheck () {
+                 $LCMState = (Get-DscLocalConfigurationManager).LCMState
+                 if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
+                     'returning 3010, should continue after reboot'
+                     exit 3010
+                 } else {
+                   'Completed'
+                 }
+             }
+             
+             Start-DscConfiguration 'C:\AWSQuickstart\gMSASetup' -Wait -Verbose -Force
+  
+             DscStatusCheck
+  - name: "RemoveDomain"
+    action: aws:runCommand
+    onFailure: "step:terminateconfigurator"
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - | 
+             $ConfigurationData = @{
+                 AllNodes = @(
+                     @{
+                         NodeName="*"
+                         PSDscAllowPlainTextPassword = $true
+                         PSDscAllowDomainUser = $true
+                     },
+                     @{
+                         NodeName = 'localhost'
+                     }
+                 )
+             }
+             
+             
+             Configuration RemoveDomain {
+             
+                 # Getting Password from Secrets Manager for AD User with permissions
+                 $ADAdminPassword = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId "{{SecretsName}}").SecretString
+                 # Creating Credential Object for AD User
+                 $Credentials = (New-Object PSCredential($ADAdminPassword.UserName,(ConvertTo-SecureString $ADAdminPassword.Password -AsPlainText -Force)))
+                 
+             
+                 Import-Module -Name PSDesiredStateConfiguration
+                 Import-Module -Name ComputerManagementDsc
+                 Import-Module -Name ActiveDirectoryDsc
+                 
+                 Import-DscResource -Module PSDesiredStateConfiguration
+                 Import-DscResource -Module ComputerManagementDsc
+                 Import-DscResource -Module ActiveDirectoryDsc
+             
+             
+                 Node localhost {
+                     ADComputer RemoveDomain {
+                         ComputerName = 'gMSAConfig'
+                         Ensure = 'Absent'
+                         Credential = $Credentials
+                     }
+                 }
+             }
+             
+             RemoveDomain -OutputPath 'C:\AWSQuickstart\RemoveDomain' -ConfigurationData $ConfigurationData
+             Start-DscConfiguration 'C:\AWSQuickstart\RemoveDomain' -Wait -Verbose -Force
+# Notice the isEnd parameters, this means that once the workflow hits this steps it will stop of the automation document. 
+# This ensures that steps after this are not executed or run. 
+  - name: "terminateconfigurator"
+    isEnd: true
+    action: aws:executeAwsApi
+    inputs:
+      Service: ec2
+      Api: TerminateInstances
+      InstanceIds: 
+        - "{{launchInstance.InstanceIds}}"
+# If a Instance ID is specified all previous steps would be skipped and then Workflow will take over from this step. 
+# Here an instance is started and polled until that Desired State is reached and it will move on to the next step. 
+  - name: StartMyInstance
+    action: aws:changeInstanceState
+    maxAttempts: 3
+    timeoutSeconds: 3600
+    onFailure: Abort
+    inputs:
+      InstanceIds:
+        - "{{InstanceId}}"
+      CheckStateOnly: true
+      DesiredState: running
+  - name: "existinggMSAConfigurator"
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - |     
+             [CmdletBinding()]
+             $ConfigurationData = @{
+                 AllNodes = @(
+                     @{
+                         NodeName="*"
+                         PSDscAllowPlainTextPassword = $true
+                         PSDscAllowDomainUser = $true
+                     },
+                     @{
+                         NodeName = 'localhost'
+                     }
+                 )
+             }
+             
+             Configuration gMSASetup {
+             
+                 # Getting Password from Secrets Manager for AD User with permissions
+                 $ADAdminPassword = ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId "{{SecretsName}}").SecretString
+                 # Creating Credential Object for AD User
+                 $Credentials = (New-Object PSCredential($ADAdminPassword.UserName,(ConvertTo-SecureString $ADAdminPassword.Password -AsPlainText -Force)))
+             
+                 Import-Module -Name PSDesiredStateConfiguration
+                 Import-Module -Name ComputerManagementDsc
+                 Import-Module -Name ActiveDirectoryDsc
+             
+                 Import-DscResource -Module ActiveDirectoryDsc
+                 Import-DscResource -Module PSDesiredStateConfiguration
+                 Import-DscResource -Module ComputerManagementDsc
+             
+                 Node localhost {
+                     Computer JoinDomain {
+                         Name = 'gMSAConfig'
+                         DomainName = "{{DomainDNSName}}"
+                         Credential = $Credentials
+                     }
+             
+                     WindowsFeature RSAT-AD-PowerShell {
+                         Name = 'RSAT-AD-PowerShell'
+                         Ensure = 'Present'
+                     }
+             
+                     ADGroup 'ECSgMSAGroup'{
+                         GroupName   = "{{ServiceAccount}}"
+                         GroupScope  = 'DomainLocal'
+                         Category    = 'Security'
+                         Ensure      = 'Present'
+                         MembersToInclude = 'gMSAConfig$'
+                         Credential = $Credentials
+                         DependsOn  = '[Computer]JoinDomain'
+                     }
+             
+                     ADManagedServiceAccount 'ECSgMSA' {
+                         Ensure                    = 'Present'
+                         ServiceAccountName        = "{{ServiceAccount}}"
+                         AccountType               = 'Group'
+                         ManagedPasswordPrincipals = "{{ServiceAccount}}"
+                         Credential = $Credentials
+                         DependsOn = "[ADGroup]ECSgMSAGroup"
+                     }
+             
+                     PendingReboot BeforeExchangeInstall {
+                         Name       = 'BeforeCredSpecSetup'
+                         DependsOn  = '[ADGroup]ECSgMSAGroup'
+                     }
+             
+                     Script 'S3CredSpec' {
+                         GetScript = {
+                             $S3key = "{{ServiceAccount}}" + '.json'
+                             Return @{Result = [string]$(Get-S3Object -BucketName "{{CredSpecBucket}}" -Key $S3key)}
+                         }
+                         TestScript = {
+                             $S3key = "{{ServiceAccount}}" + '.json'
+                             $S3CredSpec = Get-S3Object -BucketName "{{CredSpecBucket}}" -Key $S3key
+                             if($S3CredSpec.Key -ne $S3key) {
+                                 Write-Verbose 'Service Account does not have a CredSpec on S3'
+                                 Return $false
+                             } else {
+                                 Write-Verbose 'Service Account has a CredSpec on S3'
+                                 Return $true
+                             }
+                         }
+                         SetScript = {
+                             $S3key = "{{ServiceAccount}}" + '.json'
+                             $filepath = 'C:\AWSQuickstart\' + "{{ServiceAccount}}" +'.json'
+                             if((test-path $filepath) -eq $false) {
+                                 New-CredentialSpec -AccountName "{{ServiceAccount}}" -Path $filepath
+                                 Write-S3Object -BucketName "{{CredSpecBucket}}" -Key $S3key -File $filepath
+                             } else {
+                                 Write-S3Object -BucketName "{{CredSpecBucket}}" -Key $S3key -File $filepath
+                             }
+                         }
+                     }
+                 }
+             }
+             
+             gMSASetup -OutputPath 'C:\AWSQuickstart\gMSASetup' -ConfigurationData $ConfigurationData
+  - name: "existinggMSAConfig"
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - | 
+             function DscStatusCheck () {
+                 $LCMState = (Get-DscLocalConfigurationManager).LCMState
+                 if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
+                     'returning 3010, should continue after reboot'
+                     exit 3010
+                 } else {
+                   'Completed'
+                 }
+             }
+             
+             Start-DscConfiguration 'C:\AWSQuickstart\gMSASetup' -Wait -Verbose -Force
+  
+             DscStatusCheck
+  - name: stopMyInstance
+    isEnd: true
+    action: aws:changeInstanceState
+    maxAttempts: 3
+    timeoutSeconds: 3600
+    onFailure: Abort
+    inputs:
+      InstanceIds:
+        - "{{InstanceId}}"
+      CheckStateOnly: true
+      DesiredState: stopped

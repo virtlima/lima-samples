@@ -1,0 +1,580 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Deploy single windows EC2 Instance and join domain with SSM Association"
+Parameters:
+  ConfigBucket:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Description: S3 bucket name where PowerShell DSC Mof files exist and HTML web files. Config bucket name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  DomainJoinSecrets:
+    Description: "The Secrets Manager name or ARN that will be used to perform all need domain actions."
+    Type: "String"
+  DomainDNSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
+    Default: example.com
+    Description: Fully qualified domain name (FQDN).
+    MaxLength: '255'
+    MinLength: '2'
+    Type: String
+  DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: EXAMPLE
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier
+      versions of Windows.
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  LambdaExecutionResourceArn:
+    Description: "The IAM Role ARN that will be used for the Lifecycle Hook Lambda."
+    Type: String
+  S3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: alpublic
+    Type: String
+  S3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: reinvent2020/
+    Type: String
+  WriteS3LambdaRoleArn:
+    Description: "The IAM Role ARN that will be used for the Lambda that writes file to Config Bucket."
+    Type: String
+Resources:
+  LifeCycleHookLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !Ref 'LambdaExecutionResourceArn'
+      Runtime: python3.7
+      Timeout: 240
+      Code:
+        ZipFile: !Sub |
+          import json
+          import logging
+          import boto3
+          def start_ssmautomation(event, docname):
+              asg_name = event['detail']['AutoScalingGroupName']
+              instance_id = event['detail']['EC2InstanceId']
+              lch_name = event['detail']['LifecycleHookName']
+              start_automation = ssm_cl.start_automation_execution(
+                  DocumentName= docname,
+                  Parameters={
+                      'ASGName': [
+                          asg_name
+                      ],
+                      'ConfigBucket': [
+                          config_bucket
+                      ],
+                      'InstanceId': [
+                          instance_id
+                      ],
+                      'LCHName': [
+                          lch_name
+                      ]
+                  },
+              )    
+          def handler(event, context):
+              ssm_cl = boto3.client('ssm')
+              autoscale_cl = boto3.client('autoscaling')
+              try:
+                  if event['detail']['LifecycleTransition'] =='autoscaling:EC2_INSTANCE_LAUNCHING':
+                      start_ssmautomation(event, '${SetupConfigurationDoc}')
+                  elif event['detail']['LifecycleTransition'] == 'autoscaling:EC2_INSTANCE_TERMINATING':
+                      start_ssmautomation(event, '${RemoveConfigurationDoc}')
+              except Exception as e:
+                  logging.error('Exception: %s' % e, exc_info=True)
+                  autoscale_cl.complete_lifecycle_action(
+                      LifecycleHookName= event['detail']['LifecycleHookName'],
+                      AutoScalingGroupName= event['detail']['AutoScalingGroupName'],
+                      LifecycleActionResult='ABANDON',
+                      InstanceId= event['detail']['EC2InstanceId']
+                  )
+  WriteMOFFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import json
+          import logging
+          import threading
+          import boto3
+          import cfnresponse
+          def create_object(bucket, body, key):
+              s3 = boto3.client('s3')
+              s3.put_object(Body=body,Bucket=bucket, Key=key)
+          def delete_objects(bucket, key):
+              s3 = boto3.client('s3')
+              objects = s3.list_objects_v2(Bucket=bucket)
+              logsobjects = s3.list_objects_v2(Bucket=bucket, Prefix='logs')
+              if logsobjects['KeyCount'] != 0:
+                for object in logsobjects['Contents']:
+                   s3.delete_object(Bucket=bucket, Key=object['Key'])
+                s3.delete_object(Bucket=bucket, Key=key)
+              else:
+                s3.delete_object(Bucket=bucket, Key=key)
+          def timeout(event, context):
+              logging.error('Execution is about to time out, sending failure response to CloudFormation')
+              cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)
+          def handler(event, context):
+              # make sure we send a failure to CloudFormation if the function is going to timeout
+              timer = threading.Timer((context.get_remaining_time_in_millis() / 1000.00) - 0.5, timeout, args=[event, context])
+              timer.start()
+              print('Received event: %s' % json.dumps(event))
+              status = cfnresponse.SUCCESS
+              try:
+                  bucket = event['ResourceProperties']['Bucket']
+                  body = event['ResourceProperties']['Body']
+                  key = event['ResourceProperties']['Key']
+                  if event['RequestType'] == 'Delete':
+                      delete_objects(bucket, key)
+                  else:
+                      create_object(bucket, body, key)
+              except Exception as e:
+                  logging.error('Exception: %s' % e, exc_info=True)
+                  status = cfnresponse.FAILED
+              finally:
+                  timer.cancel()
+                  cfnresponse.send(event, context, status, {}, None)
+      Handler: index.handler
+      Role: !Ref 'WriteS3LambdaRoleArn'
+      Runtime: python3.7
+      Timeout: 240
+  WriteDomainJoinIISMOF:
+    Type: Custom::WriteMOFFile
+    Properties:
+      ServiceToken: !GetAtt WriteMOFFunction.Arn
+      Bucket: !Ref ConfigBucket
+      Key: !Sub "DomainJoinWebBuild.mof"
+      Body: !Sub |
+        /*
+        @TargetNode='localhost'
+        */
+        instance of MSFT_Credential as $MSFT_Credential1ref
+        {
+        Password = "stringdoesntmatter";
+         UserName = "${DomainJoinSecrets}";
+        
+        };
+        instance of DSC_Computer as $DSC_Computer1ref
+        {
+        ResourceID = "[Computer]JoinDomain";
+         Credential = $MSFT_Credential1ref;
+         DomainName = "{tag:DomainToJoin}";
+         Name = "{tag:Name}";
+         ModuleName = "ComputerManagementDsc";
+         ModuleVersion = "8.0.0";
+         ConfigurationName = "DomainJoin";
+        };
+        instance of MSFT_RoleResource as $MSFT_RoleResource1ref
+        {
+        ResourceID = "[WindowsFeature]WebServer";
+         Ensure = "Present";
+         Name = "Web-Server";
+         ModuleName = "PSDesiredStateConfiguration";
+        ModuleVersion = "1.0";
+         ConfigurationName = "DomainJoin";
+        };
+        instance of MSFT_ScriptResource as $MSFT_ScriptResource1ref
+        {
+        ResourceID = "[Script]GetWebFiles";
+         GetScript = "\n                $filelocation = \"c:\\webfiles\\index.htm\"\n                Return @{Result = [string]$(test-path $filelocation)}\n            ";
+         TestScript = "\n                $filelocation = \"c:\\webfiles\\index.htm\"\n                if((test-path $filelocation) -eq $false) {\n                    Write-Verbose 'Files need to be Downloaded'\n                    Return $false\n                } else {\n                    Write-Verbose 'Files are present locally'\n                    Return $true\n                }\n            ";
+         SetScript = "\n                Copy-S3Object -Bucket ${ConfigBucket} -key webfiles/index.htm -LocalFile c:\\inetpub\\wwwroot\\index.htm\n            ";
+         ModuleName = "PSDesiredStateConfiguration";
+        ModuleVersion = "1.0";
+        DependsOn = {
+            "[WindowsFeature]WebServer"};
+         ConfigurationName = "DomainJoin";
+        };
+        instance of OMI_ConfigurationDocument
+                            {
+         Version="2.0.0";
+                                MinimumCompatibleVersion = "1.0.0";
+                                CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+                                Name="DomainJoin";
+                            };
+  WriteWebBuildMOF:
+    Type: Custom::WriteMOFFile
+    Properties:
+      ServiceToken: !GetAtt WriteMOFFunction.Arn
+      Bucket: !Ref ConfigBucket
+      Key: !Sub "WebSite.mof"
+      Body: !Sub |
+        /*
+        @TargetNode='localhost'
+        */
+        instance of MSFT_RoleResource as $MSFT_RoleResource1ref
+        {
+        ResourceID = "[WindowsFeature]WebServer";
+         Ensure = "Present";
+         Name = "Web-Server";
+         ModuleName = "PSDesiredStateConfiguration";
+        ModuleVersion = "1.0";
+         ConfigurationName = "WebsiteTest";
+        };
+        instance of MSFT_ScriptResource as $MSFT_ScriptResource1ref
+        {
+        ResourceID = "[Script]GetWebFiles";
+         GetScript = "\n                $filelocation = \"c:\\webfiles\\index.htm\"\n                Return @{Result = [string]$(test-path $filelocation)}\n            ";
+         TestScript = "\n                $filelocation = \"c:\\webfiles\\index.htm\"\n                if((test-path $filelocation) -eq $false) {\n                    Write-Verbose 'Files need to be Downloaded'\n                    Return $false\n                } else {\n                    Write-Verbose 'Files are present locally'\n                    Return $true\n                }\n            ";
+         SetScript = "\n                Copy-S3Object -Bucket ${ConfigBucket} -key webfiles/index.htm -LocalFile c:\\inetpub\\wwwroot\\index.htm\n            ";
+         ModuleName = "PSDesiredStateConfiguration";
+        ModuleVersion = "1.0";
+        DependsOn = {
+            "[WindowsFeature]WebServer"};
+         ConfigurationName = "WebsiteTest";
+        };
+        instance of OMI_ConfigurationDocument
+                            {
+         Version="2.0.0";
+                                MinimumCompatibleVersion = "1.0.0";
+                                CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+                                Name="WebsiteTest";
+                            };
+  WriteDomainJoinMOF:
+    Type: Custom::WriteMOFFile
+    Properties:
+      ServiceToken: !GetAtt WriteMOFFunction.Arn
+      Bucket: !Ref ConfigBucket
+      Key: !Sub "DomainJoin.mof"
+      Body: !Sub |
+        /*
+        @TargetNode='localhost'
+        */
+        instance of MSFT_Credential as $MSFT_Credential1ref
+        {
+        Password = "stringdoesntmatter";
+         UserName = "${DomainJoinSecrets}";
+        };
+        instance of DSC_Computer as $DSC_Computer1ref
+        {
+        ResourceID = "[Computer]JoinDomain";
+         Credential = $MSFT_Credential1ref;
+         DomainName = "{tag:DomainToJoin}";
+         Name = "{tag:Name}";
+         ModuleName = "ComputerManagementDsc";
+         ModuleVersion = "8.0.0";
+         ConfigurationName = "DomainJoin";
+        };
+        instance of OMI_ConfigurationDocument
+                            {
+         Version="2.0.0";
+                                MinimumCompatibleVersion = "1.0.0";
+                                CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+                                Name="DomainJoin";
+                            };
+  WriteDomainRemoveMOF:
+    Type: Custom::WriteMOFFile
+    Properties:
+      ServiceToken: !GetAtt WriteMOFFunction.Arn
+      Bucket: !Ref ConfigBucket
+      Key: !Sub "DomainRemove.mof"
+      Body: !Sub |
+        /*
+        @TargetNode='localhost'
+        */
+        instance of MSFT_Credential as $MSFT_Credential1ref
+        {
+        Password = "stringdoesntmatter";
+         UserName = "${DomainJoinSecrets}";
+        };
+        instance of MSFT_ADComputer as $MSFT_ADComputer1ref
+        {
+        ResourceID = "[ADComputer]RemoveDomain";
+         Ensure = "Absent";
+         Credential = $MSFT_Credential1ref;
+         ComputerName = "{tag:Name}";
+         ModuleName = "ActiveDirectoryDsc";
+         ModuleVersion = "6.0.1";
+         ConfigurationName = "RemoveDomain";
+        };
+        instance of OMI_ConfigurationDocument
+                            {
+         Version="2.0.0";
+                                MinimumCompatibleVersion = "1.0.0";
+                                CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+                                Name="RemoveDomain";
+                            };
+  WriteHtmlFile:
+    Type: Custom::WriteMOFFile
+    Properties:
+      ServiceToken: !GetAtt WriteMOFFunction.Arn
+      Bucket: !Ref ConfigBucket
+      Key: "webfiles/index.htm"
+      Body: |
+        <html>
+          <head>
+            <title>AWS re:Invent 2020 Test Page</title>
+          </head>
+          <style>div {text-align: center;}</style>
+          <style>h1 {text-align: center;}</style>
+          <body bgcolor=white>
+            <h1>This is a Test Page to show that an IIS Server is up and ready to roll on AWS!</h1>
+            <div><a href="https://aws.amazon.com/what-is-cloud-computing"><img src="https://d0.awsstatic.com/logos/powered-by-aws.png" alt="Powered by AWS Cloud Computing"></a></div>
+          </body>
+        </html>
+  SetupConfigurationDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Automation
+      Content: 
+        schemaVersion: "0.3"
+        description: "Configure Instances on Launch"
+        assumeRole: "{{AutomationAssumeRole}}"
+        parameters:
+          ASGName:
+            description: "Auto Scaling Group Name"
+            type: "String"
+          ConfigBucket:
+            description: "Bucket Containing Mof Files"
+            type: "String"
+          InstanceId:
+            description: "Id of Instance"
+            type: "String"
+          LCHName:
+            description: "Life Cycle Hook Name"
+            type: "String"
+          AutomationAssumeRole:
+            default: ""
+            description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+            type: "String" 
+        mainSteps:
+          - name: "installCloudWatchAgent"
+            action: aws:runCommand
+            onFailure: step:abandonHookAction
+            inputs:
+              DocumentName: AWS-ConfigureAWSPackage
+              InstanceIds: 
+                - "{{InstanceId}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+              Parameters:
+                action:
+                  - "Install"
+                installationType:
+                  - "Uninstall and reinstall"
+                name:
+                  - "AmazonCloudWatchAgent"
+                version:
+                  - "latest"
+          - name: "configureCloudWatchAgent"
+            action: aws:runCommand
+            onFailure: step:abandonHookAction
+            inputs:
+              DocumentName: AmazonCloudWatch-ManageAgent
+              InstanceIds: 
+                - "{{InstanceId}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+              Parameters:
+                action:
+                  - "configure"
+                mode:
+                  - 'ec2'
+                optionalConfigurationLocation:
+                  - 'AmazonCloudWatch-windows'
+                optionalConfigurationSource:
+                  - 'ssm'
+                optionalRestart:
+                  - 'yes'
+          - name: "applyDomainJoin"
+            action: aws:runCommand
+            onFailure: step:abandonHookAction
+            inputs:
+              DocumentName: AWS-ApplyDSCMofs
+              InstanceIds: 
+                - "{{InstanceId}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+              Parameters:
+                MofsToApply:
+                  - !Sub "s3:{{ConfigBucket}}:DomainJoin.mof"
+                ServicePath:
+                  - default
+                MofOperationMode:
+                  - Apply
+                ComplianceType:
+                  - Custom:DomainJoinSample
+                ModuleSourceBucketName:
+                  - "NONE"
+                AllowPSGalleryModuleSource:
+                  - "True"
+                RebootBehavior:
+                  - "AfterMof"
+                UseComputerNameForReporting:
+                  - "False"
+                EnableVerboseLogging:
+                  - "False"
+                EnableDebugLogging:
+                  - "False"
+          - name: "applyDomainIIS"
+            action: aws:runCommand
+            onFailure: step:abandonHookAction
+            inputs:
+              DocumentName: AWS-ApplyDSCMofs
+              InstanceIds: 
+                - "{{InstanceId}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+              Parameters:
+                MofsToApply:
+                  - !Sub "s3:{{ConfigBucket}}:WebSite.mof"
+                ServicePath:
+                  - default
+                MofOperationMode:
+                  - Apply
+                ComplianceType:
+                  - Custom:WebsiteSample
+                ModuleSourceBucketName:
+                  - "NONE"
+                AllowPSGalleryModuleSource:
+                  - "True"
+                RebootBehavior:
+                  - "AfterMof"
+                UseComputerNameForReporting:
+                  - "False"
+                EnableVerboseLogging:
+                  - "False"
+                EnableDebugLogging:
+                  - "False"
+          - name: "applyLogonMessage"
+            action: aws:runCommand
+            onFailure: step:abandonHookAction
+            inputs:
+              DocumentName: AWS-ApplyDSCMofs
+              InstanceIds: 
+                - "{{InstanceId}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+              Parameters:
+                MofsToApply:
+                  - !Sub "s3:{{ConfigBucket}}:WebSite.mof"
+                ServicePath:
+                  - default
+                MofOperationMode:
+                  - Apply
+                ComplianceType:
+                  - Custom:WebsiteSample
+                ModuleSourceBucketName:
+                  - "NONE"
+                AllowPSGalleryModuleSource:
+                  - "True"
+                RebootBehavior:
+                  - "AfterMof"
+                UseComputerNameForReporting:
+                  - "False"
+                EnableVerboseLogging:
+                  - "False"
+                EnableDebugLogging:
+                  - "False"
+          - name: "completeHookAction"
+            action: aws:executeAwsApi
+            isEnd: true
+            inputs:
+              Service: autoscaling
+              Api: CompleteLifecycleAction
+              AutoScalingGroupName: "{{ASGName}}"
+              InstanceId: "{{InstanceId}}"
+              LifecycleActionResult: CONTINUE
+              LifecycleHookName: "{{LCHName}}"
+          - name: "abandonHookAction"
+            action: aws:executeAwsApi
+            isEnd: true
+            inputs:
+              Service: autoscaling
+              Api: CompleteLifecycleAction
+              AutoScalingGroupName: "{{ASGName}}"
+              InstanceId: "{{InstanceId}}"
+              LifecycleActionResult: ABANDON
+              LifecycleHookName: "{{LCHName}}"
+  RemoveConfigurationDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Automation
+      Content:
+        schemaVersion: "0.3"
+        description: "Remove EC2 Instances from AD Domain"
+        assumeRole: "{{AutomationAssumeRole}}"
+        parameters:
+          ASGName:
+            description: "Auto Scaling Group Name"
+            type: "String"
+          ConfigBucket:
+            description: "Bucket Containing Mof Files"
+            type: "String"
+          InstanceId:
+            description: "Id of Instance"
+            type: "String"
+          LCHName:
+            description: "Life Cycle Hook Name"
+            type: "String"
+          AutomationAssumeRole:
+            default: ""
+            description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+            type: "String" 
+        mainSteps:
+          - name: "RemoveFromDomain"
+            action: aws:runCommand
+            onFailure: step:abandonHookAction
+            inputs:
+              DocumentName: AWS-ApplyDSCMofs
+              InstanceIds: 
+                - "{{InstanceId}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+              Parameters:
+                MofsToApply:
+                  - !Sub "s3:{{ConfigBucket}}:DomainRemove.mof"
+                ServicePath:
+                  - default
+                MofOperationMode:
+                  - Apply
+                ComplianceType:
+                  - Custom:DomainJoinSample
+                ModuleSourceBucketName:
+                  - "NONE"
+                AllowPSGalleryModuleSource:
+                  - "True"
+                RebootBehavior:
+                  - "AfterMof"
+                UseComputerNameForReporting:
+                  - "False"
+                EnableVerboseLogging:
+                  - "False"
+                EnableDebugLogging:
+                  - "False"
+          - name: "completeHookAction"
+            action: aws:executeAwsApi
+            isEnd: true
+            inputs:
+              Service: autoscaling
+              Api: CompleteLifecycleAction
+              AutoScalingGroupName: "{{ASGName}}"
+              InstanceId: "{{InstanceId}}"
+              LifecycleActionResult: CONTINUE
+              LifecycleHookName: "{{LCHName}}"
+          - name: "abandonHookAction"
+            action: aws:executeAwsApi
+            isEnd: true
+            inputs:
+              Service: autoscaling
+              Api: CompleteLifecycleAction
+              AutoScalingGroupName: "{{ASGName}}"
+              InstanceId: "{{InstanceId}}"
+              LifecycleActionResult: ABANDON
+              LifecycleHookName: "{{LCHName}}"
+Outputs:
+  LifeCycleHookLambdaArn:
+    Value: !GetAtt LifeCycleHookLambda.Arn
+  SetupConfigurationDocName:
+    Value: !Ref SetupConfigurationDoc
+  RemoveConfigurationDocName:
+    Value: !Ref RemoveConfigurationDoc

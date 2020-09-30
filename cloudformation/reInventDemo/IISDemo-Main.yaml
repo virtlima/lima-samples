@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "This CloudFormation Template demonstrates two ways to configure Windows Workloads with Auto-Scaling. In both scenario IIS will be install and configured to display a simple Static Page, 
+  with CloudWatch Logs collecting Metrics and Logs and AWS Systems Manager configuring the instances. Scenario 1 launches a scalable IIS environment based on a launch template, Application
+  Load Balancer and Auto Scaling Group. Configuretaion while Scaling is handled by Lifecycle Hooks, EventBridge, and .NET Core 3.1 Lambda function. Scenario 2 instead of using Life Cycle Hooks relies on AWS Systems Manager State
+  Manager Associations"
+Parameters:
+  DomainAdminPassword:
+    AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
+    Description: Password for the domain admin user. Must be at least 8 characters,
+      containing letters, numbers, and symbols.
+    MaxLength: '32'
+    MinLength: '8'
+    NoEcho: 'true'
+    Type: String
+  DomainAdminUser:
+    AllowedPattern: '[a-zA-Z0-9]*'
+    Default: Admin
+    Description: User name for the account that will be used as domain administrator. This is separate from the default "Administrator" account.
+    MaxLength: '25'
+    MinLength: '5'
+    Type: String
+  DomainDNSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
+    Default: example.com
+    Description: Fully qualified domain name (FQDN).
+    MaxLength: '255'
+    MinLength: '2'
+    Type: String
+  DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: EXAMPLE
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier
+      versions of Windows.
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  S3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: alpublic
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  S3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: reinvent2020/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+Resources:
+  ConfigBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfter30Days
+            ExpirationInDays: 30
+            Status: Enabled
+            Prefix: 'logs/'
+  DomainJoinSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'DomainJoinSecrets-${AWS::StackName}'
+      Description: Secrets to join AD domain
+      SecretString: !Sub '{"username":"${DomainNetBIOSName}\\${DomainAdminUser}","password":"${DomainAdminPassword}"}'
+  IAMStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${S3BucketName}.s3.${AWS::URLSuffix}/${S3KeyPrefix}iam-roles.yaml'
+      Parameters:
+        ConfigBucket: !Ref 'ConfigBucket'
+        DomainJoinSecrets: !Ref 'DomainJoinSecrets'
+  AutomationStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${S3BucketName}.s3.${AWS::URLSuffix}/${S3KeyPrefix}automation-parts.yaml'
+      Parameters:
+        ConfigBucket: !Ref 'ConfigBucket'
+        DomainJoinSecrets: !Ref 'DomainJoinSecrets'
+        DomainDNSName: !Ref 'DomainDNSName'
+        DomainNetBIOSName: !Ref 'DomainNetBIOSName'
+        LambdaExecutionResourceArn: !GetAtt 'IAMStack.Outputs.LambdaExecutionResourceArn'
+        WriteS3LambdaRoleArn: !GetAtt 'IAMStack.Outputs.WriteS3LambdaRoleArn'
+Outputs:
+  ConfigBucket:
+    Value: !Ref ConfigBucket
+  DomainJoinSecrets:
+    Value: !Ref DomainJoinSecrets
