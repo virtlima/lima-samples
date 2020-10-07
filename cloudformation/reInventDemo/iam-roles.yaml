@@ -14,7 +14,7 @@ Parameters:
     Description: "The Secrets Manager name or ARN that will be used to perform all need domain actions."
     Type: "String"
 Resources:
-  LambdaExecutionResource:
+  ExecutionResourceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -23,13 +23,12 @@ Resources:
           - Effect: Allow
             Principal:
               Service:
-                - lambda.amazonaws.com
+                - ssm.amazonaws.com
             Action:
               - sts:AssumeRole
       Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMFullAccess
-        - arn:aws:iam::aws:policy/AWSLambdaExecute
         - arn:aws:iam::aws:policy/AmazonEC2FullAccess
       Description: New IAM Role to allow SSM access.
   WriteS3LambdaRole:
@@ -128,8 +127,8 @@ Resources:
       Roles:
       - !Ref SSMInstanceRole
 Outputs:
-  LambdaExecutionResourceArn:
-    Value: !GetAtt LambdaExecutionResource.Arn
+  ExecutionResourceArn:
+    Value: !GetAtt ExecutionResourceRole.Arn
   WriteS3LambdaRoleArn:
     Value: !GetAtt WriteS3LambdaRole.Arn
   SSMInstanceRoleArn:

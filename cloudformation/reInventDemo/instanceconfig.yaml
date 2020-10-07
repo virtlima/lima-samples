@@ -20,13 +20,34 @@ parameters:
     description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
     type: "String" 
 mainSteps:
-  - name: "InstallDSCModules"
+  - name: waitUntilInstanceStateRunning
+    action: aws:waitForAwsResourceProperty
+    timeoutSeconds: 600
+    inputs:
+      Service: ec2
+      Api: DescribeInstanceStatus
+      InstanceIds:
+        - "{{InstanceId}}"
+      PropertySelector: "$.InstanceStatuses[0].InstanceState.Name"
+      DesiredValues:
+        - running
+  - name: assertInstanceStateRunning
+    action: aws:assertAwsResourceProperty
+    inputs:
+      Service: ec2
+      Api: DescribeInstanceStatus
+      InstanceIds:
+        - "{{InstanceId}}"
+      PropertySelector: "$.InstanceStatuses[0].InstanceState.Name"
+      DesiredValues:
+        - running
+  - name: "setNameTag"
     action: aws:runCommand
     onFailure: "step:terminateconfigurator"
     inputs:
       DocumentName: AWS-RunPowerShellScript
       InstanceIds: 
-        - "{{launchInstance.InstanceIds}}"
+        - "{{InstanceId}}"
       CloudWatchOutputConfig:
         CloudWatchOutputEnabled: "true"
         CloudWatchLogGroupName: "/gMSAConfigurator"

@@ -1,0 +1,20 @@
+{'version': '0', 
+    'id': '0edf8548-9467-64b2-7ce9-24cc6e6f9bf5', 
+    'detail-type': 'EC2 Instance-launch Lifecycle Action', 
+    'source': 'aws.autoscaling', 
+    'account': '0', 
+    'time': '2020-09-29T18:59:08Z', 
+    'region': 'us-east-1', 
+    'resources': [
+        'arn:aws:autoscaling:us-east-1:0:autoScalingGroup:3293963c-3806-443d-9ded-08f7a2392f24:autoScalingGroupName/Test'], 
+    'detail': {
+        'LifecycleActionToken': 'f682366b-b171-4b39-ab84-2c68724fd8b0', 
+        'AutoScalingGroupName': 'Test', 
+        'LifecycleHookName': 'DomainJoin', 
+        'EC2InstanceId': 'i-0a89f941d59fd8df7', 
+        'LifecycleTransition': 'autoscaling:EC2_INSTANCE_LAUNCHING'
+        }
+}
+
+{"ASGName":"$.detail.AutoScalingGroupName","InstanceId":"$.detail.EC2InstanceId","LCHName":"$.detail.LifecycleHookName"}
+{"AutomationAssumeRole":["arn:aws:iam::024357338510:role/LambdaAdmin"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["asgdemo-configbucket-9rcdm8oxyz28"]}

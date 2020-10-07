@@ -83,9 +83,6 @@ Resources:
       Parameters:
         ConfigBucket: !Ref 'ConfigBucket'
         DomainJoinSecrets: !Ref 'DomainJoinSecrets'
-        DomainDNSName: !Ref 'DomainDNSName'
-        DomainNetBIOSName: !Ref 'DomainNetBIOSName'
-        LambdaExecutionResourceArn: !GetAtt 'IAMStack.Outputs.LambdaExecutionResourceArn'
         WriteS3LambdaRoleArn: !GetAtt 'IAMStack.Outputs.WriteS3LambdaRoleArn'
 Outputs:
   ConfigBucket:

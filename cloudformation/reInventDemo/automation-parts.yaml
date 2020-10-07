@@ -13,90 +13,10 @@ Parameters:
   DomainJoinSecrets:
     Description: "The Secrets Manager name or ARN that will be used to perform all need domain actions."
     Type: "String"
-  DomainDNSName:
-    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
-    Default: example.com
-    Description: Fully qualified domain name (FQDN).
-    MaxLength: '255'
-    MinLength: '2'
-    Type: String
-  DomainNetBIOSName:
-    AllowedPattern: '[a-zA-Z0-9\-]+'
-    Default: EXAMPLE
-    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier
-      versions of Windows.
-    MaxLength: '15'
-    MinLength: '1'
-    Type: String
-  LambdaExecutionResourceArn:
-    Description: "The IAM Role ARN that will be used for the Lifecycle Hook Lambda."
-    Type: String
-  S3BucketName:
-    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
-      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
-      (-).
-    Default: alpublic
-    Type: String
-  S3KeyPrefix:
-    AllowedPattern: ^[0-9a-zA-Z-/]*$
-    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
-      uppercase letters, hyphens (-), and forward slash (/).
-    Default: reinvent2020/
-    Type: String
   WriteS3LambdaRoleArn:
     Description: "The IAM Role ARN that will be used for the Lambda that writes file to Config Bucket."
     Type: String
 Resources:
-  LifeCycleHookLambda:
-    Type: AWS::Lambda::Function
-    Properties:
-      Handler: index.handler
-      Role: !Ref 'LambdaExecutionResourceArn'
-      Runtime: python3.7
-      Timeout: 240
-      Code:
-        ZipFile: !Sub |
-          import json
-          import logging
-          import boto3
-          def start_ssmautomation(event, docname):
-              asg_name = event['detail']['AutoScalingGroupName']
-              instance_id = event['detail']['EC2InstanceId']
-              lch_name = event['detail']['LifecycleHookName']
-              start_automation = ssm_cl.start_automation_execution(
-                  DocumentName= docname,
-                  Parameters={
-                      'ASGName': [
-                          asg_name
-                      ],
-                      'ConfigBucket': [
-                          config_bucket
-                      ],
-                      'InstanceId': [
-                          instance_id
-                      ],
-                      'LCHName': [
-                          lch_name
-                      ]
-                  },
-              )    
-          def handler(event, context):
-              ssm_cl = boto3.client('ssm')
-              autoscale_cl = boto3.client('autoscaling')
-              try:
-                  if event['detail']['LifecycleTransition'] =='autoscaling:EC2_INSTANCE_LAUNCHING':
-                      start_ssmautomation(event, '${SetupConfigurationDoc}')
-                  elif event['detail']['LifecycleTransition'] == 'autoscaling:EC2_INSTANCE_TERMINATING':
-                      start_ssmautomation(event, '${RemoveConfigurationDoc}')
-              except Exception as e:
-                  logging.error('Exception: %s' % e, exc_info=True)
-                  autoscale_cl.complete_lifecycle_action(
-                      LifecycleHookName= event['detail']['LifecycleHookName'],
-                      AutoScalingGroupName= event['detail']['AutoScalingGroupName'],
-                      LifecycleActionResult='ABANDON',
-                      InstanceId= event['detail']['EC2InstanceId']
-                  )
   WriteMOFFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -152,7 +72,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt WriteMOFFunction.Arn
       Bucket: !Ref ConfigBucket
-      Key: !Sub "DomainJoinWebBuild.mof"
+      Key: "DomainJoinWebBuild.mof"
       Body: !Sub |
         /*
         @TargetNode='localhost'
@@ -206,7 +126,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt WriteMOFFunction.Arn
       Bucket: !Ref ConfigBucket
-      Key: !Sub "WebSite.mof"
+      Key: "WebSite.mof"
       Body: !Sub |
         /*
         @TargetNode='localhost'
@@ -244,7 +164,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt WriteMOFFunction.Arn
       Bucket: !Ref ConfigBucket
-      Key: !Sub "DomainJoin.mof"
+      Key: "DomainJoin.mof"
       Body: !Sub |
         /*
         @TargetNode='localhost'
@@ -276,11 +196,20 @@ Resources:
     Properties:
       ServiceToken: !GetAtt WriteMOFFunction.Arn
       Bucket: !Ref ConfigBucket
-      Key: !Sub "DomainRemove.mof"
+      Key: "DomainRemove.mof"
       Body: !Sub |
         /*
         @TargetNode='localhost'
         */
+        instance of MSFT_RoleResource as $MSFT_RoleResource1ref
+        {
+        ResourceID = "[WindowsFeature]RSAT-AD-PowerShell";
+         Ensure = "Present";
+         Name = "RSAT-AD-PowerShell";
+         ModuleName = "PSDesiredStateConfiguration";
+        ModuleVersion = "1.0";
+         ConfigurationName = "RemoveDomain";
+        };
         instance of MSFT_Credential as $MSFT_Credential1ref
         {
         Password = "stringdoesntmatter";
@@ -347,6 +276,43 @@ Resources:
             description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
             type: "String" 
         mainSteps:
+          - name: waitUntilInstanceStateRunning
+            action: aws:waitForAwsResourceProperty
+            timeoutSeconds: 600
+            inputs:
+              Service: ec2
+              Api: DescribeInstanceStatus
+              InstanceIds:
+                - "{{InstanceId}}"
+              PropertySelector: "$.InstanceStatuses[0].InstanceState.Name"
+              DesiredValues:
+                - running
+          - name: assertInstanceStateRunning
+            action: aws:assertAwsResourceProperty
+            inputs:
+              Service: ec2
+              Api: DescribeInstanceStatus
+              InstanceIds:
+                - "{{InstanceId}}"
+              PropertySelector: "$.InstanceStatuses[0].InstanceState.Name"
+              DesiredValues:
+                - running
+          - name: "setNameTag"
+            action: aws:runCommand
+            onFailure: "step:abandonHookAction"
+            inputs:
+              DocumentName: AWS-RunPowerShellScript
+              InstanceIds: 
+                - "{{InstanceId}}"
+              CloudWatchOutputConfig:
+                CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: "/SetupConfiguration"
+              Parameters:
+                commands: 
+                  - |
+                     Import-Module AWSPowerShell
+                     $instanceid = (Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/meta-data/instance-id)
+                     New-EC2Tag -Resource $instanceId -Tag @{Key="Name";Value=$env:COMPUTERNAME}
           - name: "installCloudWatchAgent"
             action: aws:runCommand
             onFailure: step:abandonHookAction
@@ -356,6 +322,7 @@ Resources:
                 - "{{InstanceId}}"
               CloudWatchOutputConfig:
                 CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: "/SetupConfiguration"
               Parameters:
                 action:
                   - "Install"
@@ -374,6 +341,7 @@ Resources:
                 - "{{InstanceId}}"
               CloudWatchOutputConfig:
                 CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: "/SetupConfiguration"
               Parameters:
                 action:
                   - "configure"
@@ -394,15 +362,14 @@ Resources:
                 - "{{InstanceId}}"
               CloudWatchOutputConfig:
                 CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: "/SetupConfiguration"
               Parameters:
                 MofsToApply:
-                  - !Sub "s3:{{ConfigBucket}}:DomainJoin.mof"
+                  - "s3:{{ConfigBucket}}:DomainJoin.mof"
                 ServicePath:
                   - default
                 MofOperationMode:
                   - Apply
-                ComplianceType:
-                  - Custom:DomainJoinSample
                 ModuleSourceBucketName:
                   - "NONE"
                 AllowPSGalleryModuleSource:
@@ -424,45 +391,14 @@ Resources:
                 - "{{InstanceId}}"
               CloudWatchOutputConfig:
                 CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: "/SetupConfiguration"
               Parameters:
                 MofsToApply:
-                  - !Sub "s3:{{ConfigBucket}}:WebSite.mof"
+                  - "s3:{{ConfigBucket}}:WebSite.mof"
                 ServicePath:
                   - default
                 MofOperationMode:
                   - Apply
-                ComplianceType:
-                  - Custom:WebsiteSample
-                ModuleSourceBucketName:
-                  - "NONE"
-                AllowPSGalleryModuleSource:
-                  - "True"
-                RebootBehavior:
-                  - "AfterMof"
-                UseComputerNameForReporting:
-                  - "False"
-                EnableVerboseLogging:
-                  - "False"
-                EnableDebugLogging:
-                  - "False"
-          - name: "applyLogonMessage"
-            action: aws:runCommand
-            onFailure: step:abandonHookAction
-            inputs:
-              DocumentName: AWS-ApplyDSCMofs
-              InstanceIds: 
-                - "{{InstanceId}}"
-              CloudWatchOutputConfig:
-                CloudWatchOutputEnabled: "true"
-              Parameters:
-                MofsToApply:
-                  - !Sub "s3:{{ConfigBucket}}:WebSite.mof"
-                ServicePath:
-                  - default
-                MofOperationMode:
-                  - Apply
-                ComplianceType:
-                  - Custom:WebsiteSample
                 ModuleSourceBucketName:
                   - "NONE"
                 AllowPSGalleryModuleSource:
@@ -530,9 +466,10 @@ Resources:
                 - "{{InstanceId}}"
               CloudWatchOutputConfig:
                 CloudWatchOutputEnabled: "true"
+                CloudWatchLogGroupName: "/RemoveConfiguration"
               Parameters:
                 MofsToApply:
-                  - !Sub "s3:{{ConfigBucket}}:DomainRemove.mof"
+                  - "s3:{{ConfigBucket}}:DomainRemove.mof"
                 ServicePath:
                   - default
                 MofOperationMode:
@@ -572,8 +509,6 @@ Resources:
               LifecycleActionResult: ABANDON
               LifecycleHookName: "{{LCHName}}"
 Outputs:
-  LifeCycleHookLambdaArn:
-    Value: !GetAtt LifeCycleHookLambda.Arn
   SetupConfigurationDocName:
     Value: !Ref SetupConfigurationDoc
   RemoveConfigurationDocName:
