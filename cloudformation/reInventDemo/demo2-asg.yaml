@@ -95,7 +95,6 @@ Metadata:
       - Label:
           default: Amazon EC2 Auto Scaling Configuration
         Parameters:
-          - SNSEndpointParameter
           - ASGDesiredCapacityParameter
           - ASGMinSizeParameter
           - ASGMaxSizeParameter
@@ -115,8 +114,6 @@ Metadata:
         default: Security Group
       ELBSubnetParameter:
         default: VPC Subnets
-      SNSEndpointParameter:
-        default: SNS Email Address
       ASGSubnetParameter:
         default: VPC Subnets
       ASGMinSizeParameter:
@@ -145,54 +142,56 @@ Resources:
             Tags:
               - Key: "DomainToJoin"
                 Value: !Ref "DomainDNSName"
-  ALBResource:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Scheme: !Ref 'ELBSchemeParameter'
-      Subnets:
-        - !Select
-          - '0'
-          - !Ref 'ELBSubnetParameter'
-        - !Select
-          - '1'
-          - !Ref 'ELBSubnetParameter'
-      SecurityGroups:
-        - !Select
-          - '0'
-          - !Ref 'ELBSecurityGroupParameter'
-  ALBTargetGroupResource:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Port: 80
-      Protocol: HTTP
-      VpcId: !Select
-        - '0'
-        - !Ref 'VpcIdParameter'
-      HealthyThresholdCount: 5
-      HealthCheckTimeoutSeconds: 120
-      HealthCheckIntervalSeconds: 300
-      UnhealthyThresholdCount: 10
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: '60'
-  ALBListenerResource:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref 'ALBResource'
-      Port: 80
-      Protocol: HTTP
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref 'ALBTargetGroupResource'
+#  ALBResource:
+#    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+#    Properties:
+#      Scheme: !Ref 'ELBSchemeParameter'
+#      Subnets:
+#        - !Select
+#          - '0'
+#          - !Ref 'ELBSubnetParameter'
+#        - !Select
+#          - '1'
+#          - !Ref 'ELBSubnetParameter'
+#      SecurityGroups:
+#        - !Select
+#          - '0'
+#          - !Ref 'ELBSecurityGroupParameter'
+#  ALBTargetGroupResource:
+#    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+#    Properties:
+#      Port: 80
+#      Protocol: HTTP
+#      VpcId: !Select
+#        - '0'
+#        - !Ref 'VpcIdParameter'
+#      HealthyThresholdCount: 5
+#      HealthCheckTimeoutSeconds: 120
+#      HealthCheckIntervalSeconds: 300
+#      UnhealthyThresholdCount: 10
+#      TargetGroupAttributes:
+#        - Key: deregistration_delay.timeout_seconds
+#          Value: '60'
+#  ALBListenerResource:
+#    Type: AWS::ElasticLoadBalancingV2::Listener
+#    Properties:
+#      LoadBalancerArn: !Ref 'ALBResource'
+#      Port: 80
+#      Protocol: HTTP
+#      DefaultActions:
+#        - Type: forward
+#          TargetGroupArn: !Ref 'ALBTargetGroupResource'
   ASGResource:
+    DependsOn: ScaleUpEventBridgeResource
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
+      AutoScalingGroupName: !Sub "${AWS::StackName}"
       MinSize: !Ref 'ASGMinSizeParameter'
       MaxSize: !Ref 'ASGMaxSizeParameter'
       DesiredCapacity: !Ref 'ASGDesiredCapacityParameter'
-      HealthCheckType: ELB
+      HealthCheckType: EC2
       HealthCheckGracePeriod: 60
-      Cooldown: 30
+      Cooldown: '30'
       LaunchTemplate:
         LaunchTemplateId: !Ref 'EC2LaunchTemplateResource'
         Version: !GetAtt 'EC2LaunchTemplateResource.LatestVersionNumber'
@@ -203,8 +202,8 @@ Resources:
         - !Select
           - '1'
           - !Ref 'ASGSubnetParameter'
-      TargetGroupARNs:
-        - !Ref 'ALBTargetGroupResource'
+      #TargetGroupARNs:
+      #  - !Ref 'ALBTargetGroupResource'
       LifecycleHookSpecificationList:
         - LifecycleTransition: autoscaling:EC2_INSTANCE_LAUNCHING
           LifecycleHookName: DomainJoinHook
@@ -255,7 +254,7 @@ Resources:
           - EC2 Instance-launch Lifecycle Action
         detail:
           AutoScalingGroupName:
-            - !Ref 'ASGResource'
+            - !Sub "${AWS::StackName}"
       Targets:
         - Arn: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:automation-definition/${SetupConfigurationDocName}:$DEFAULT'
           Id: Windows-Scale-Out
@@ -264,8 +263,8 @@ Resources:
             InputPathsMap:
               ASGName: $.detail.AutoScalingGroupName
               InstanceId: $.detail.EC2InstanceId
-              region: $.region
-            InputTemplate: !Sub '"{AutomationAssumeRole":["${ExecutionResourceArn}"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["${ConfigBucket}"]}'
+              LCHName: $.detail.LifecycleHookName
+            InputTemplate: !Sub '{"AutomationAssumeRole":["${ExecutionResourceArn}"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["${ConfigBucket}"]}'
   ScaleDownEventBridgeResource:
     Type: AWS::Events::Rule
     Properties:
@@ -278,7 +277,7 @@ Resources:
           - EC2 Instance-terminate Lifecycle Action
         detail:
           AutoScalingGroupName:
-            - !Ref 'ASGResource'
+            - !Sub "${AWS::StackName}"
       Targets:
         - Arn: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:automation-definition/${RemoveConfigurationDocName}:$DEFAULT'
           Id: Windows-Scale-In
@@ -287,12 +286,12 @@ Resources:
             InputPathsMap:
               ASGName: $.detail.AutoScalingGroupName
               InstanceId: $.detail.EC2InstanceId
-              region: $.region
-            InputTemplate: !Sub '"{AutomationAssumeRole":["${ExecutionResourceArn}"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["${ConfigBucket}"]}'
+              LCHName: $.detail.LifecycleHookName
+            InputTemplate: !Sub '{"AutomationAssumeRole":["${ExecutionResourceArn}"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["${ConfigBucket}"]}'
 Outputs:
-  ELBUrl:
-    Description: DNS name of the ELB.
-    Value: !GetAtt 'ALBResource.DNSName'
+#  ELBUrl:
+#    Description: DNS name of the ELB.
+#    Value: !GetAtt 'ALBResource.DNSName'
   LaunchTemplateId:
     Description: Launch template Id
     Value: !Ref 'EC2LaunchTemplateResource'

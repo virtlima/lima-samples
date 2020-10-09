@@ -223,6 +223,8 @@ Resources:
          ComputerName = "{tag:Name}";
          ModuleName = "ActiveDirectoryDsc";
          ModuleVersion = "6.0.1";
+        DependsOn = {
+            "[WindowsFeature]RSAT-AD-PowerShell"};
          ConfigurationName = "RemoveDomain";
         };
         instance of OMI_ConfigurationDocument
@@ -474,8 +476,6 @@ Resources:
                   - default
                 MofOperationMode:
                   - Apply
-                ComplianceType:
-                  - Custom:DomainJoinSample
                 ModuleSourceBucketName:
                   - "NONE"
                 AllowPSGalleryModuleSource:
