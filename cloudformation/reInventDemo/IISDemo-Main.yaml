@@ -53,6 +53,46 @@ Parameters:
       can include numbers, lowercase letters, uppercase letters, hyphens (-), and
       forward slash (/).
     Type: String
+  InstanceTypeParameter:
+    Type: String
+    Default: t3.2xlarge
+    AllowedValues:
+      - t2.2xlarge
+      - t3.2xlarge
+      - m5.large
+      - c5.large
+    Description: Select an instance type. The default instance type is t3.2xlarge.
+  LaunchTemplateSecurityGroupParameter:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: Select EC2 security group to assign to the launch template.
+  VpcId:
+    Type: List<AWS::EC2::VPC::Id>
+    Description: List of Virtual Private Cloud (VPC) Ids in your account.
+  #ELBSchemeParameter:
+  #  Type: String
+  #  Default: internet-facing
+  #  AllowedValues:
+  #    - internet-facing
+  #    - internal
+  #  Description: Select whether the ELB is internet-facing (public) or internal (private).
+  #ELBSubnetParameter:
+  #  Type: List<AWS::EC2::Subnet::Id>
+  #  Description: Select EC2 subnets to assign to the ELB.
+  #ELBSecurityGroupParameter:
+  #  Type: List<AWS::EC2::SecurityGroup::Id>
+  #  Description: Select EC2 security group to assign to the ELB.
+  ASGMinSizeParameter:
+    Type: Number
+    Description: Minimum instance size for the Auto Scaling Group.
+  ASGMaxSizeParameter:
+    Type: Number
+    Description: Maximum instance size for the Auto Scaling Group.
+  ASGDesiredCapacityParameter:
+    Type: Number
+    Description: Desired capacity instance size for the Auto Scaling Group.
+  ASGSubnetParameter:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Select EC2 subnets to assign to the Auto Scaling Group.
 Resources:
   ConfigBucket:
     Type: AWS::S3::Bucket
@@ -84,6 +124,22 @@ Resources:
         ConfigBucket: !Ref 'ConfigBucket'
         DomainJoinSecrets: !Ref 'DomainJoinSecrets'
         WriteS3LambdaRoleArn: !GetAtt 'IAMStack.Outputs.WriteS3LambdaRoleArn'
+  WebAutoScaleStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${S3BucketName}.s3.${AWS::URLSuffix}/${S3KeyPrefix}asg-lifecyclehooks.yaml'
+      Parameters:
+        ConfigBucket: !Ref 'ConfigBucket'
+        InstanceTypeParameter:
+        LaunchTemplateSecurityGroupParameter:
+        VpcId:
+        ASGDesiredCapacityParameter:
+        ASGMinSizeParameter:
+        ASGMaxSizeParameter:
+        ExecutionResourceArn:
+        SetupConfigurationDocName:
+        RemoveConfigurationDocName:
+        SSMInstanceProfileName:
 Outputs:
   ConfigBucket:
     Value: !Ref ConfigBucket
