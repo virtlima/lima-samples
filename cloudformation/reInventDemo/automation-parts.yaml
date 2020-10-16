@@ -267,8 +267,8 @@ Resources:
           ConfigBucket:
             description: "Bucket Containing Mof Files"
             type: "String"
-          InstanceId:
-            description: "Id of Instance"
+          LCHToken:
+            description: "Token of Life cycle action"
             type: "String"
           LCHName:
             description: "Life Cycle Hook Name"
@@ -420,7 +420,7 @@ Resources:
               Service: autoscaling
               Api: CompleteLifecycleAction
               AutoScalingGroupName: "{{ASGName}}"
-              InstanceId: "{{InstanceId}}"
+              LifecycleActionToken: "{{LCHToken}}"
               LifecycleActionResult: CONTINUE
               LifecycleHookName: "{{LCHName}}"
           - name: "abandonHookAction"
@@ -430,7 +430,7 @@ Resources:
               Service: autoscaling
               Api: CompleteLifecycleAction
               AutoScalingGroupName: "{{ASGName}}"
-              InstanceId: "{{InstanceId}}"
+              LifecycleActionToken: "{{LCHToken}}"
               LifecycleActionResult: ABANDON
               LifecycleHookName: "{{LCHName}}"
   RemoveConfigurationDoc:
@@ -448,8 +448,8 @@ Resources:
           ConfigBucket:
             description: "Bucket Containing Mof Files"
             type: "String"
-          InstanceId:
-            description: "Id of Instance"
+          LCHToken:
+            description: "Token of Life cycle action"
             type: "String"
           LCHName:
             description: "Life Cycle Hook Name"
@@ -495,7 +495,7 @@ Resources:
               Service: autoscaling
               Api: CompleteLifecycleAction
               AutoScalingGroupName: "{{ASGName}}"
-              InstanceId: "{{InstanceId}}"
+              LifecycleActionToken: "{{LCHToken}}"
               LifecycleActionResult: CONTINUE
               LifecycleHookName: "{{LCHName}}"
           - name: "abandonHookAction"
@@ -505,7 +505,7 @@ Resources:
               Service: autoscaling
               Api: CompleteLifecycleAction
               AutoScalingGroupName: "{{ASGName}}"
-              InstanceId: "{{InstanceId}}"
+              LifecycleActionToken: "{{LCHToken}}"
               LifecycleActionResult: ABANDON
               LifecycleHookName: "{{LCHName}}"
 Outputs:
